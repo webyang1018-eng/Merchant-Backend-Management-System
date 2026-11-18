@@ -12,6 +12,8 @@ import {
 import { OrderStatusBadge, SegmentBadge } from '../components/ui/Badge';
 import { Drawer } from '../components/ui/Drawer';
 import { Modal } from '../components/ui/Modal';
+import { useI18n } from '../i18n/I18nContext';
+import { getSegmentKey } from '../i18n/translations';
 import { useMerchant } from '../store/MerchantContext';
 import type { Customer, CustomerSegment } from '../types/merchant';
 import {
@@ -38,6 +40,7 @@ export function CustomersPage() {
     setInspectOrderId,
     pushToast,
   } = useMerchant();
+  const { locale, t, tc } = useI18n();
   const currency = state.settings.currency;
 
   const [segmentFilter, setSegmentFilter] = useState<'all' | CustomerSegment>('all');
@@ -68,8 +71,12 @@ export function CustomersPage() {
             c.name.toLowerCase().includes(q) ||
             c.email.toLowerCase().includes(q) ||
             c.city.toLowerCase().includes(q) ||
+            tc(c.city).toLowerCase().includes(q) ||
             c.country.toLowerCase().includes(q) ||
-            c.tags.some((t) => t.toLowerCase().includes(q))
+            tc(c.country).toLowerCase().includes(q) ||
+            c.tags.some(
+              (tag) => tag.toLowerCase().includes(q) || tc(tag).toLowerCase().includes(q)
+            )
           );
         }
         return true;
@@ -79,7 +86,7 @@ export function CustomersPage() {
         if (sortBy === 'orders') return b.totalOrders - a.totalOrders;
         return b.lastOrderAt.localeCompare(a.lastOrderAt);
       });
-  }, [enriched, segmentFilter, search, sortBy]);
+  }, [enriched, segmentFilter, search, sortBy, tc]);
 
   const totals = useMemo(() => {
     const ltv = enriched.reduce((s, c) => s + c.totalSpent, 0);
@@ -93,38 +100,40 @@ export function CustomersPage() {
 
   const handleExport = () => {
     const headers = [
-      'Name',
-      'Email',
-      'Phone',
-      'City',
-      'Country',
-      'Segment',
-      'Orders',
-      'Lifetime Spend',
-      'Tags',
+      t('customers.csvName'),
+      t('customers.csvEmail'),
+      t('customers.csvPhone'),
+      t('customers.csvCity'),
+      t('customers.csvCountry'),
+      t('customers.csvSegment'),
+      t('customers.csvOrders'),
+      t('customers.csvLtv'),
+      t('customers.csvTags'),
     ];
     const rows = filtered.map((c) => [
       c.name,
       c.email,
       c.phone,
-      c.city,
-      c.country,
-      c.segment,
+      tc(c.city),
+      tc(c.country),
+      t(getSegmentKey(c.segment)),
       c.totalOrders,
       c.totalSpent.toFixed(2),
-      c.tags.join('; '),
+      c.tags.map((tag) => tc(tag)).join('; '),
     ]);
     downloadCsv('customers-2026-11-18.csv', headers, rows);
-    pushToast('Customer list exported', `Downloaded ${rows.length} profile(s).`, 'info');
+    pushToast(
+      t('customers.toastExportTitle'),
+      t('customers.toastExportDesc', { count: rows.length }),
+      'info'
+    );
   };
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">
-          View customer lifetime value, purchase history, retention segments, and CRM notes.
-        </p>
+        <p className="text-sm text-slate-600">{t('customers.subtitle')}</p>
         <div className="flex items-center gap-2.5">
           <button
             type="button"
@@ -132,7 +141,7 @@ export function CustomersPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50"
           >
             <Download className="h-3.5 w-3.5" />
-            Export CSV
+            {t('common.exportCsv')}
           </button>
           <button
             type="button"
@@ -140,7 +149,7 @@ export function CustomersPage() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-teal-800"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            Add Customer
+            {t('customers.addCustomer')}
           </button>
         </div>
       </div>
@@ -148,25 +157,25 @@ export function CustomersPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Customer Directory</div>
+          <div className="text-xs text-slate-500">{t('customers.metricDirectory')}</div>
           <div className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
             {totals.count}
           </div>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">VIP Accounts</div>
+          <div className="text-xs text-slate-500">{t('customers.metricVip')}</div>
           <div className="mt-1 text-xl font-semibold text-violet-700 tabular-nums">
             {totals.vips}
           </div>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Repeat Purchase Rate</div>
+          <div className="text-xs text-slate-500">{t('customers.metricRepeat')}</div>
           <div className="mt-1 text-xl font-semibold text-emerald-700 tabular-nums">
             {totals.repeatRate}%
           </div>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Combined Lifetime Spend</div>
+          <div className="text-xs text-slate-500">{t('customers.metricLtv')}</div>
           <div className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
             {formatCurrency(totals.ltv, currency)}
           </div>
@@ -189,7 +198,7 @@ export function CustomersPage() {
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {seg === 'all' ? 'All Customers' : seg}
+                {seg === 'all' ? t('customers.tabAll') : t(getSegmentKey(seg))}
               </button>
             );
           })}
@@ -202,19 +211,19 @@ export function CustomersPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, email, city, or tag..."
+              placeholder={t('customers.searchPlaceholder')}
               className="w-full rounded-lg border border-slate-200 py-1.5 pr-3 pl-8.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-teal-600 focus:outline-none"
             />
           </div>
           <select
-            aria-label="Sort customers"
+            aria-label={t('customers.sortAria')}
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-teal-600 focus:outline-none"
           >
-            <option value="spent">Highest lifetime spend</option>
-            <option value="orders">Most orders</option>
-            <option value="recent">Most recent activity</option>
+            <option value="spent">{t('customers.sortSpent')}</option>
+            <option value="orders">{t('customers.sortOrders')}</option>
+            <option value="recent">{t('customers.sortRecent')}</option>
           </select>
         </div>
 
@@ -222,19 +231,21 @@ export function CustomersPage() {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-                <th className="px-5 py-3">Customer</th>
-                <th className="hidden px-4 py-3 sm:table-cell">Location</th>
-                <th className="px-4 py-3">Segment</th>
-                <th className="px-4 py-3 text-right">Orders</th>
-                <th className="px-4 py-3 text-right">Lifetime Spend</th>
-                <th className="hidden px-5 py-3 text-right md:table-cell">Last Active</th>
+                <th className="px-5 py-3">{t('common.customer')}</th>
+                <th className="hidden px-4 py-3 sm:table-cell">{t('customers.colLocation')}</th>
+                <th className="px-4 py-3">{t('customers.colSegment')}</th>
+                <th className="px-4 py-3 text-right">{t('customers.colOrders')}</th>
+                <th className="px-4 py-3 text-right">{t('customers.colLtv')}</th>
+                <th className="hidden px-5 py-3 text-right md:table-cell">
+                  {t('customers.colLastActive')}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-xs text-slate-500">
-                    No customers match your search criteria.
+                    {t('customers.empty')}
                   </td>
                 </tr>
               ) : (
@@ -256,7 +267,9 @@ export function CustomersPage() {
                       </div>
                     </td>
                     <td className="hidden px-4 py-3.5 text-slate-600 whitespace-nowrap sm:table-cell">
-                      {cust.city}, {cust.country}
+                      {tc(cust.city)}
+                      {locale === 'zh' ? ' · ' : ', '}
+                      {tc(cust.country)}
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <SegmentBadge segment={cust.segment} />
@@ -268,7 +281,7 @@ export function CustomersPage() {
                       {formatCurrency(cust.totalSpent, currency)}
                     </td>
                     <td className="hidden px-5 py-3.5 text-right text-slate-500 whitespace-nowrap tabular-nums md:table-cell">
-                      {formatShortDate(cust.lastOrderAt)}
+                      {formatShortDate(cust.lastOrderAt, locale)}
                     </td>
                   </tr>
                 ))
@@ -296,6 +309,7 @@ export function CustomersPage() {
 
 function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { dispatch, pushToast } = useMerchant();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -321,7 +335,7 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) {
-      setError('Customer name and email address are required.');
+      setError(t('customerModal.errReq'));
       return;
     }
     dispatch({
@@ -337,7 +351,10 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
         notes: notes.trim(),
       },
     });
-    pushToast('Customer profile created', `${name.trim()} added to CRM directory.`);
+    pushToast(
+      t('customerModal.toastTitle'),
+      t('customerModal.toastDesc', { name: name.trim() })
+    );
     onClose();
   };
 
@@ -345,8 +362,8 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
     <Modal
       open={open}
       onClose={onClose}
-      title="Add Customer"
-      subtitle="Create a customer profile for direct orders, wholesale billing, or support tracking."
+      title={t('customerModal.title')}
+      subtitle={t('customerModal.subtitle')}
       footer={
         <>
           <button
@@ -354,14 +371,14 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
             onClick={onClose}
             className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             form="add-customer-form"
             className="rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
           >
-            Save Customer
+            {t('customerModal.saveBtn')}
           </button>
         </>
       }
@@ -374,7 +391,9 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
         )}
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Full Name</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('customerModal.fieldName')}
+            </label>
             <input
               type="text"
               value={name}
@@ -384,7 +403,9 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
             />
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Email Address</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('customerModal.fieldEmail')}
+            </label>
             <input
               type="email"
               value={email}
@@ -396,7 +417,9 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Phone</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('customerModal.fieldPhone')}
+            </label>
             <input
               type="text"
               value={phone}
@@ -406,7 +429,9 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
             />
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Segment</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('customerModal.fieldSegment')}
+            </label>
             <select
               value={segment}
               onChange={(e) => setSegment(e.target.value as CustomerSegment)}
@@ -414,7 +439,7 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
             >
               {SEGMENTS.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {t(getSegmentKey(s))}
                 </option>
               ))}
             </select>
@@ -422,7 +447,9 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">City</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('customerModal.fieldCity')}
+            </label>
             <input
               type="text"
               value={city}
@@ -431,7 +458,9 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
             />
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Country</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('customerModal.fieldCountry')}
+            </label>
             <input
               type="text"
               value={country}
@@ -441,12 +470,14 @@ function AddCustomerModal({ open, onClose }: { open: boolean; onClose: () => voi
           </div>
         </div>
         <div>
-          <label className="mb-1 block font-medium text-slate-700">CRM Note</label>
+          <label className="mb-1 block font-medium text-slate-700">
+            {t('customerModal.fieldNote')}
+          </label>
           <textarea
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Delivery preferences, account manager notes..."
+            placeholder={t('customerModal.notePlaceholder')}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
           />
         </div>
@@ -465,6 +496,7 @@ function CustomerDetailDrawer({
   onSelectOrder: (orderId: string) => void;
 }) {
   const { state, dispatch, pushToast } = useMerchant();
+  const { locale, t, tc } = useI18n();
   const [notes, setNotes] = useState('');
   const [newTag, setNewTag] = useState('');
 
@@ -511,7 +543,7 @@ function CustomerDetailDrawer({
   const handleRemoveTag = (tag: string) => {
     dispatch({
       type: 'UPDATE_CUSTOMER',
-      payload: toRawCustomer({ tags: customer.tags.filter((t) => t !== tag) }),
+      payload: toRawCustomer({ tags: customer.tags.filter((item) => item !== tag) }),
     });
   };
 
@@ -520,7 +552,10 @@ function CustomerDetailDrawer({
       type: 'UPDATE_CUSTOMER',
       payload: toRawCustomer({ notes }),
     });
-    pushToast('Customer notes updated', `Saved for ${customer.name}.`);
+    pushToast(
+      t('customerDrawer.toastNotesTitle'),
+      t('customerDrawer.toastNotesDesc', { name: customer.name })
+    );
   };
 
   return (
@@ -533,25 +568,27 @@ function CustomerDetailDrawer({
           <SegmentBadge segment={customer.segment} />
         </>
       }
-      subtitle={`Customer since ${formatDate(customer.joinedAt)}`}
+      subtitle={t('customerDrawer.since', {
+        date: formatDate(customer.joinedAt, false, locale),
+      })}
     >
       <div className="space-y-6 text-xs">
         {/* Metrics */}
         <div className="grid grid-cols-3 gap-3 tabular-nums">
           <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
-            <div className="text-[11px] text-slate-500">Lifetime Spend</div>
+            <div className="text-[11px] text-slate-500">{t('customers.colLtv')}</div>
             <div className="mt-1 text-base font-semibold text-slate-900">
               {formatCurrency(customer.totalSpent, currency)}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
-            <div className="text-[11px] text-slate-500">Total Orders</div>
+            <div className="text-[11px] text-slate-500">{t('customerDrawer.totalOrders')}</div>
             <div className="mt-1 text-base font-semibold text-slate-900">
               {customer.totalOrders}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
-            <div className="text-[11px] text-slate-500">Avg. Order</div>
+            <div className="text-[11px] text-slate-500">{t('customerDrawer.avgOrder')}</div>
             <div className="mt-1 text-base font-semibold text-slate-900">
               {formatCurrency(customer.aov, currency)}
             </div>
@@ -559,22 +596,30 @@ function CustomerDetailDrawer({
         </div>
 
         {/* Contact & Segment */}
-        <div className="rounded-xl border border-slate-200/80 p-4 space-y-2.5">
+        <div className="space-y-2.5 rounded-xl border border-slate-200/80 p-4">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-slate-800">Contact &amp; Segment</span>
+            <span className="font-semibold text-slate-800">
+              {t('customerDrawer.contactSegment')}
+            </span>
             <select
-              aria-label="Customer segment"
+              aria-label={t('customerDrawer.segmentAria')}
               value={customer.segment}
               onChange={(e) => {
                 const seg = e.target.value as CustomerSegment;
                 dispatch({ type: 'UPDATE_CUSTOMER', payload: toRawCustomer({ segment: seg }) });
-                pushToast('Segment updated', `${customer.name} moved to ${seg}.`);
+                pushToast(
+                  t('customerDrawer.toastSegTitle'),
+                  t('customerDrawer.toastSegDesc', {
+                    name: customer.name,
+                    segment: t(getSegmentKey(seg)),
+                  })
+                );
               }}
               className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-teal-600 focus:outline-none"
             >
               {SEGMENTS.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {t(getSegmentKey(s))}
                 </option>
               ))}
             </select>
@@ -590,15 +635,17 @@ function CustomerDetailDrawer({
           <div className="flex items-center gap-2 text-slate-600">
             <MapPin className="h-3.5 w-3.5 text-slate-400" />
             <span>
-              {customer.city}, {customer.country}
+              {tc(customer.city)}
+              {locale === 'zh' ? ' · ' : ', '}
+              {tc(customer.country)}
             </span>
           </div>
         </div>
 
         {/* Tags */}
         <div>
-          <h3 className="mb-2 font-semibold tracking-wider text-slate-500 uppercase text-[11px]">
-            CRM Tags
+          <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+            {t('customerDrawer.tagsHeading')}
           </h3>
           <div className="flex flex-wrap gap-1.5">
             {customer.tags.map((tag) => (
@@ -606,11 +653,11 @@ function CustomerDetailDrawer({
                 key={tag}
                 className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700"
               >
-                {tag}
+                {tc(tag)}
                 <button
                   type="button"
                   onClick={() => handleRemoveTag(tag)}
-                  aria-label={`Remove ${tag}`}
+                  aria-label={t('customerDrawer.removeTagAria', { tag: tc(tag) })}
                   className="text-slate-400 hover:text-slate-700"
                 >
                   <X className="h-3 w-3" />
@@ -623,7 +670,7 @@ function CustomerDetailDrawer({
               type="text"
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
-              placeholder="Add tag (e.g. Wholesale, Priority)..."
+              placeholder={t('customerDrawer.tagPlaceholder')}
               className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-slate-900 focus:border-teal-600 focus:outline-none"
             />
             <button
@@ -631,21 +678,21 @@ function CustomerDetailDrawer({
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add
+              {t('common.add')}
             </button>
           </form>
         </div>
 
         {/* Notes */}
         <div>
-          <h3 className="mb-2 font-semibold tracking-wider text-slate-500 uppercase text-[11px]">
-            Internal Account Notes
+          <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+            {t('customerDrawer.notesHeading')}
           </h3>
           <textarea
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Record customer preferences or wholesale terms..."
+            placeholder={t('customerDrawer.notesPlaceholder')}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
           />
           <div className="mt-2 flex justify-end">
@@ -654,19 +701,19 @@ function CustomerDetailDrawer({
               onClick={handleSaveNotes}
               className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
             >
-              Save Note
+              {t('customerDrawer.saveNoteBtn')}
             </button>
           </div>
         </div>
 
         {/* Recent Orders */}
         <div>
-          <h3 className="mb-2 font-semibold tracking-wider text-slate-500 uppercase text-[11px]">
-            Recent Orders ({recentOrders.length})
+          <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+            {t('customerDrawer.recentOrdersHeading', { count: recentOrders.length })}
           </h3>
           {recentOrders.length === 0 ? (
             <div className="rounded-xl border border-slate-200/80 px-4 py-6 text-center text-slate-500">
-              No orders in the current ledger yet.
+              {t('customerDrawer.noOrders')}
             </div>
           ) : (
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/80">
@@ -682,7 +729,7 @@ function CustomerDetailDrawer({
                         {ord.orderNumber}
                       </div>
                       <div className="text-[11px] text-slate-400 tabular-nums">
-                        {formatDate(ord.createdAt)}
+                        {formatDate(ord.createdAt, false, locale)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

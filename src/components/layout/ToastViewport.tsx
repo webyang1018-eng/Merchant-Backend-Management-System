@@ -1,8 +1,10 @@
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 import { useMerchant } from '../../store/MerchantContext';
 
 export function ToastViewport() {
   const { toasts, dismissToast } = useMerchant();
+  const { t } = useI18n();
 
   if (toasts.length === 0) return null;
 
@@ -42,7 +44,7 @@ export function ToastViewport() {
             <button
               type="button"
               onClick={() => dismissToast(toast.id)}
-              aria-label="Dismiss notification"
+              aria-label={t('app.dismissNotification')}
               className="rounded p-0.5 text-slate-400 hover:text-slate-600"
             >
               <X className="h-3.5 w-3.5" />

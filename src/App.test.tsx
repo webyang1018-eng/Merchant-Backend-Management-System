@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import App from './App';
+import { en, translateContent, zh, type TranslationKey } from './i18n/translations';
 
 describe('Merchant Backend Console UI integration', () => {
   beforeEach(() => {
@@ -105,5 +106,88 @@ describe('Merchant Backend Console UI integration', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Team & Roles' }));
     expect(screen.getByText('Aaron Koh')).toBeTruthy();
+  });
+
+  it('maintains 100% key and placeholder parity between English and Chinese dictionaries', () => {
+    const enKeys = Object.keys(en).sort() as TranslationKey[];
+    const zhKeys = Object.keys(zh).sort() as TranslationKey[];
+    expect(zhKeys).toEqual(enKeys);
+
+    const extractTokens = (str: string) =>
+      Array.from(str.matchAll(/\{(\w+)\}/g))
+        .map((m) => m[1])
+        .sort();
+
+    for (const key of enKeys) {
+      expect(zh[key].trim().length).toBeGreaterThan(0);
+      expect(extractTokens(zh[key])).toEqual(extractTokens(en[key]));
+    }
+
+    expect(translateContent('Order placed via Online Store', 'zh')).toBe('通过官方商城提交订单');
+    expect(translateContent('Order placed via Online Store', 'en')).toBe(
+      'Order placed via Online Store'
+    );
+  });
+
+  it('switches cleanly between English and Simplified Chinese across all modules and persists preference', () => {
+    const { unmount } = render(<App />);
+
+    expect(document.documentElement.lang).toBe('en');
+    expect(document.title).toBe('Mercato — Merchant Backend Console');
+
+    // Click 中文 in the top bar language switcher
+    fireEvent.click(screen.getByRole('button', { name: '中文' }));
+
+    expect(document.documentElement.lang).toBe('zh-CN');
+    expect(document.title).toBe('Mercato — 商户后台管理系统');
+    expect(localStorage.getItem('mercato_locale_v1')).toBe('zh');
+
+    // Overview localized
+    expect(screen.getByRole('heading', { name: '经营总览' })).toBeTruthy();
+    expect(screen.getByText('总交易额 (GMV)')).toBeTruthy();
+    expect(screen.getByText('可提现余额')).toBeTruthy();
+    expect(screen.getByText('头层牛皮短途旅行袋')).toBeTruthy();
+
+    // Notifications popover localized
+    fireEvent.click(screen.getByRole('button', { name: '消息通知' }));
+    expect(screen.getByText(/待办运营提醒/)).toBeTruthy();
+
+    // Orders + Order Detail Drawer localized
+    fireEvent.click(screen.getByRole('button', { name: /^订单管理/ }));
+    expect(screen.getByRole('heading', { name: '订单管理' })).toBeTruthy();
+    fireEvent.click(screen.getByText('#HL-1048'));
+    const drawer = screen.getByRole('dialog');
+    expect(within(drawer).getByText('录入物流并安排发货')).toBeTruthy();
+    expect(within(drawer).getByText('通过官方商城提交订单')).toBeTruthy();
+    fireEvent.click(within(drawer).getByRole('button', { name: '关闭侧栏' }));
+
+    // Products, Customers, Promotions, Finance, Settings localized
+    fireEvent.click(screen.getByRole('button', { name: /^商品库存/ }));
+    expect(screen.getByRole('heading', { name: '商品与库存管理' })).toBeTruthy();
+    expect(screen.getByText('库存零售总货值')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '客户管理' }));
+    expect(screen.getByText('客户复购率')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '营销优惠' }));
+    expect(screen.getByText('秋季焕新精选 — 8 折特惠')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '财务与结算' }));
+    expect(screen.getByText('待结算货款')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /资金收支明细/ }));
+    expect(screen.getByText(/Apple Pay 订单收款 — Clara Tan/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '店铺设置' }));
+    expect(screen.getByText('店铺资料与语言区域')).toBeTruthy();
+
+    // Verify persistence after remount, then switch back to English via Settings selector
+    unmount();
+    render(<App />);
+    expect(screen.getByRole('heading', { name: '经营总览' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '店铺设置' }));
+    fireEvent.change(screen.getByLabelText('后台界面语言'), { target: { value: 'en' } });
+    expect(document.documentElement.lang).toBe('en');
+    expect(screen.getByRole('heading', { name: 'Store Settings' })).toBeTruthy();
   });
 });

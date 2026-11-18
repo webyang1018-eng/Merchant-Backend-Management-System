@@ -4,25 +4,17 @@ import {
   ArrowUpRight,
   Bell,
   CheckCheck,
+  Languages,
   Menu,
   RotateCcw,
   Search,
   ShoppingBag,
   Wallet,
 } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
+import { getSectionTitleKey } from '../../i18n/translations';
 import { useMerchant } from '../../store/MerchantContext';
-import type { NavSection } from '../../types/merchant';
 import { formatCurrency } from '../../utils/format';
-
-const SECTION_TITLES: Record<NavSection, string> = {
-  overview: 'Overview',
-  orders: 'Orders',
-  products: 'Products & Inventory',
-  customers: 'Customers',
-  promotions: 'Promotions',
-  finance: 'Finance & Payouts',
-  settings: 'Store Settings',
-};
 
 interface TopBarProps {
   onOpenMobileMenu: () => void;
@@ -38,6 +30,7 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
     navigateWithOrderFilter,
     navigateWithProductFilter,
   } = useMerchant();
+  const { locale, setLocale, t, tc } = useI18n();
   const [alertsOpen, setAlertsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,8 +59,16 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
     if (unfulfilled.length > 0 && state.settings.notifications.newOrders) {
       items.push({
         id: `alert-unfulfilled-${unfulfilled.length}`,
-        title: `${unfulfilled.length} order${unfulfilled.length > 1 ? 's' : ''} ready to fulfill`,
-        detail: `Latest: ${unfulfilled[0].orderNumber} from ${unfulfilled[0].customerName}`,
+        title: t(
+          unfulfilled.length === 1
+            ? 'topbar.alertUnfulfilledTitleOne'
+            : 'topbar.alertUnfulfilledTitleOther',
+          { count: unfulfilled.length }
+        ),
+        detail: t('topbar.alertUnfulfilledDetail', {
+          orderNumber: unfulfilled[0].orderNumber,
+          customer: unfulfilled[0].customerName,
+        }),
         icon: ShoppingBag,
         tone: 'text-blue-600 bg-blue-50',
         onClick: () => navigateWithOrderFilter('to_fulfill'),
@@ -78,7 +79,7 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
     if (refunds.length > 0 && state.settings.notifications.refundRequests) {
       items.push({
         id: `alert-refunds-${refunds.length}`,
-        title: `${refunds.length} refund request awaiting review`,
+        title: t('topbar.alertRefundTitle', { count: refunds.length }),
         detail: `${refunds[0].orderNumber} · ${formatCurrency(refunds[0].total, state.settings.currency)}`,
         icon: RotateCcw,
         tone: 'text-rose-600 bg-rose-50',
@@ -93,8 +94,16 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
       const oos = lowStock.filter((p) => p.stock === 0).length;
       items.push({
         id: `alert-lowstock-${lowStock.length}-${oos}`,
-        title: `${lowStock.length} active SKU${lowStock.length > 1 ? 's' : ''} below threshold`,
-        detail: oos > 0 ? `${oos} out of stock — restock recommended` : `Includes ${lowStock[0].name}`,
+        title: t(
+          lowStock.length === 1
+            ? 'topbar.alertLowStockTitleOne'
+            : 'topbar.alertLowStockTitleOther',
+          { count: lowStock.length }
+        ),
+        detail:
+          oos > 0
+            ? t('topbar.alertLowStockOos', { count: oos })
+            : t('topbar.alertLowStockIncludes', { name: tc(lowStock[0].name) }),
         icon: AlertTriangle,
         tone: 'text-amber-600 bg-amber-50',
         onClick: () => navigateWithProductFilter('low_stock'),
@@ -107,8 +116,16 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
     if (activePayout && state.settings.notifications.payoutConfirmations) {
       items.push({
         id: `alert-payout-${activePayout.id}`,
-        title: `Payout ${activePayout.reference} ${activePayout.status === 'in_transit' ? 'in transit' : 'processing'}`,
-        detail: `${formatCurrency(activePayout.netAmount, state.settings.currency)} arriving ${activePayout.arrivalDate}`,
+        title: t(
+          activePayout.status === 'in_transit'
+            ? 'topbar.alertPayoutInTransit'
+            : 'topbar.alertPayoutProcessing',
+          { ref: activePayout.reference }
+        ),
+        detail: t('topbar.alertPayoutDetail', {
+          amount: formatCurrency(activePayout.netAmount, state.settings.currency),
+          date: activePayout.arrivalDate,
+        }),
         icon: Wallet,
         tone: 'text-emerald-600 bg-emerald-50',
         onClick: () => setActiveSection('finance'),
@@ -125,48 +142,83 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
     navigateWithOrderFilter,
     navigateWithProductFilter,
     setActiveSection,
+    t,
+    tc,
   ]);
 
   const unreadCount = alerts.filter((a) => !state.readAlertIds.includes(a.id)).length;
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-xs sm:px-6 lg:px-8">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-xs sm:px-6 lg:px-8">
+      <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
           onClick={onOpenMobileMenu}
-          aria-label="Open menu"
+          aria-label={t('app.openMenu')}
           className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 lg:hidden"
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-base font-semibold tracking-tight text-slate-900">
-          {SECTION_TITLES[activeSection]}
+        <h1 className="truncate text-base font-semibold tracking-tight text-slate-900">
+          {t(getSectionTitleKey(activeSection))}
         </h1>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         {/* Global Command Search Button */}
         <button
           type="button"
           onClick={onOpenSearch}
-          className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs text-slate-500 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-700 sm:w-60 sm:justify-between"
+          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs text-slate-500 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-700 sm:w-56 sm:justify-between sm:px-3"
         >
-          <span className="flex items-center gap-2">
-            <Search className="h-3.5 w-3.5 text-slate-400" />
-            <span className="hidden sm:inline">Search orders, SKUs...</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span className="hidden truncate sm:inline">{t('topbar.searchPlaceholder')}</span>
           </span>
-          <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-slate-400 sm:inline">
+          <kbd className="hidden shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-slate-400 sm:inline">
             ⌘K
           </kbd>
         </button>
+
+        {/* Chinese / English Language Switcher */}
+        <div
+          role="group"
+          aria-label={t('app.switchLanguage')}
+          className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-[11px] font-medium"
+        >
+          <Languages className="ml-1.5 mr-1 hidden h-3.5 w-3.5 text-slate-400 xl:block" />
+          <button
+            type="button"
+            onClick={() => setLocale('en')}
+            aria-pressed={locale === 'en'}
+            className={`rounded-md px-2 py-1 transition-colors ${
+              locale === 'en'
+                ? 'bg-white font-semibold text-slate-900 shadow-2xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => setLocale('zh')}
+            aria-pressed={locale === 'zh'}
+            className={`rounded-md px-2 py-1 transition-colors ${
+              locale === 'zh'
+                ? 'bg-white font-semibold text-slate-900 shadow-2xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            中文
+          </button>
+        </div>
 
         {/* Notifications Bell */}
         <div className="relative" ref={popoverRef}>
           <button
             type="button"
             onClick={() => setAlertsOpen((v) => !v)}
-            aria-label="Notifications"
+            aria-label={t('topbar.notificationsLabel')}
             className="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
           >
             <Bell className="h-4 w-4" />
@@ -179,7 +231,7 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
             <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl sm:w-96">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                 <span className="text-xs font-semibold text-slate-900">
-                  Operational Alerts ({alerts.length})
+                  {t('topbar.alertsHeading', { count: alerts.length })}
                 </span>
                 {unreadCount > 0 && (
                   <button
@@ -190,13 +242,13 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
                     className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-800"
                   >
                     <CheckCheck className="h-3.5 w-3.5" />
-                    Mark all read
+                    {t('topbar.markAllRead')}
                   </button>
                 )}
               </div>
               {alerts.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-slate-500">
-                  All caught up — no pending operational alerts.
+                  {t('topbar.allCaughtUp')}
                 </div>
               ) : (
                 <ul className="divide-y divide-slate-100">
@@ -245,7 +297,7 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
           type="button"
           onClick={() => setActiveSection('settings')}
           className="flex items-center gap-2 rounded-lg py-1 pr-1.5 pl-1 transition-colors hover:bg-slate-100"
-          title="Account & Store Settings"
+          title={t('app.accountSettingsTitle')}
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
             ER
@@ -254,7 +306,9 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
             <span className="block text-xs font-medium leading-tight text-slate-800">
               Elena Rostova
             </span>
-            <span className="block text-[10px] leading-tight text-slate-500">Owner</span>
+            <span className="block text-[10px] leading-tight text-slate-500">
+              {t('role.Owner')}
+            </span>
           </span>
         </button>
       </div>

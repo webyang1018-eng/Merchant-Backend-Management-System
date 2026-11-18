@@ -13,16 +13,13 @@ import { RevenueChart } from '../components/charts/RevenueChart';
 import { OrderStatusBadge } from '../components/ui/Badge';
 import { ProductSwatch } from '../components/ui/ProductSwatch';
 import { getAnalyticsSeries, SEED_ORDERS, type DateRangeKey } from '../data/seedData';
+import { useI18n } from '../i18n/I18nContext';
+import { getChannelKey } from '../i18n/translations';
 import { useMerchant } from '../store/MerchantContext';
 import type { SalesChannel } from '../types/merchant';
-import { formatCurrency, formatNumber, formatShortDate } from '../utils/format';
+import { formatCurrency, formatDate, formatNumber, formatShortDate } from '../utils/format';
 
-const RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
-  { key: '7d', label: '7D' },
-  { key: '30d', label: '30D' },
-  { key: '90d', label: '90D' },
-  { key: '12m', label: '12M' },
-];
+const RANGE_KEYS: DateRangeKey[] = ['7d', '30d', '90d', '12m'];
 
 const SEED_VALID_TOTAL = SEED_ORDERS.filter(
   (o) => o.status !== 'cancelled' && o.status !== 'refunded'
@@ -40,6 +37,7 @@ export function OverviewPage() {
     setInspectOrderId,
     setQuickAction,
   } = useMerchant();
+  const { locale, t, tc } = useI18n();
   const [range, setRange] = useState<DateRangeKey>('30d');
   const currency = state.settings.currency;
 
@@ -54,8 +52,8 @@ export function OverviewPage() {
   }, [state.orders]);
 
   const { points, deltas } = useMemo(
-    () => getAnalyticsSeries(range, deltaRevenue, deltaOrders),
-    [range, deltaRevenue, deltaOrders]
+    () => getAnalyticsSeries(range, deltaRevenue, deltaOrders, locale),
+    [range, deltaRevenue, deltaOrders, locale]
   );
 
   const periodRevenue = useMemo(
@@ -67,6 +65,8 @@ export function OverviewPage() {
     [points]
   );
   const periodAov = periodOrders > 0 ? periodRevenue / periodOrders : 0;
+
+  const rangeLabel = t(`overview.range.${range}`);
 
   // Channel mix derived from active orders scaled to the selected period
   const channelMix = useMemo(() => {
@@ -113,29 +113,31 @@ export function OverviewPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-slate-600">
-            Store performance for{' '}
-            <span className="font-medium text-slate-900">{state.settings.storeName}</span> · Updated
-            Nov 18, 2026
+            {t('overview.subtitlePrefix')}{' '}
+            <span className="font-medium text-slate-900">{state.settings.storeName}</span> ·{' '}
+            {t('overview.subtitleUpdated', {
+              date: formatDate('2026-11-18T12:00:00Z', false, locale),
+            })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <div
             className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs"
             role="group"
-            aria-label="Analytics time range"
+            aria-label={t('overview.rangeAria')}
           >
-            {RANGE_OPTIONS.map((opt) => (
+            {RANGE_KEYS.map((key) => (
               <button
-                key={opt.key}
+                key={key}
                 type="button"
-                onClick={() => setRange(opt.key)}
+                onClick={() => setRange(key)}
                 className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors tabular-nums ${
-                  range === opt.key
+                  range === key
                     ? 'bg-slate-900 text-white'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                {opt.label}
+                {t(`overview.range.${key}`)}
               </button>
             ))}
           </div>
@@ -148,7 +150,7 @@ export function OverviewPage() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-teal-800"
           >
             <Plus className="h-3.5 w-3.5" />
-            New Order
+            {t('overview.newOrder')}
           </button>
         </div>
       </div>
@@ -157,7 +159,9 @@ export function OverviewPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Gross Revenue</span>
+            <span className="text-xs font-medium text-slate-500">
+              {t('overview.kpiGrossRevenue')}
+            </span>
             <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 tabular-nums">
               <TrendingUp className="h-3 w-3" />+{deltas.revenue}%
             </span>
@@ -165,12 +169,16 @@ export function OverviewPage() {
           <div className="mt-2.5 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
             {formatCurrency(periodRevenue, currency)}
           </div>
-          <p className="mt-1 text-xs text-slate-500">vs. previous {range.toUpperCase()} period</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {t('overview.kpiVsPrev', { range: rangeLabel })}
+          </p>
         </div>
 
         <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Completed Orders</span>
+            <span className="text-xs font-medium text-slate-500">
+              {t('overview.kpiCompletedOrders')}
+            </span>
             <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 tabular-nums">
               <TrendingUp className="h-3 w-3" />+{deltas.orders}%
             </span>
@@ -179,13 +187,13 @@ export function OverviewPage() {
             {formatNumber(periodOrders)}
           </div>
           <p className="mt-1 text-xs text-slate-500 tabular-nums">
-            {unfulfilledCount} awaiting dispatch right now
+            {t('overview.kpiAwaitingDispatch', { count: unfulfilledCount })}
           </p>
         </div>
 
         <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Avg. Order Value</span>
+            <span className="text-xs font-medium text-slate-500">{t('overview.kpiAov')}</span>
             <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 tabular-nums">
               <TrendingUp className="h-3 w-3" />+{deltas.aov}%
             </span>
@@ -194,7 +202,9 @@ export function OverviewPage() {
             {formatCurrency(periodAov, currency)}
           </div>
           <p className="mt-1 text-xs text-slate-500 tabular-nums">
-            Free shipping over {formatCurrency(state.settings.freeShippingThreshold, currency)}
+            {t('overview.kpiFreeShipOver', {
+              amount: formatCurrency(state.settings.freeShippingThreshold, currency),
+            })}
           </p>
         </div>
 
@@ -204,14 +214,16 @@ export function OverviewPage() {
           className="group rounded-xl border border-slate-200/80 bg-white p-5 text-left shadow-2xs transition-colors hover:border-teal-600/40"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Available Payout</span>
+            <span className="text-xs font-medium text-slate-500">
+              {t('overview.kpiAvailablePayout')}
+            </span>
             <ArrowUpRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-teal-700" />
           </div>
           <div className="mt-2.5 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
             {formatCurrency(state.availableBalance, currency)}
           </div>
           <p className="mt-1 truncate text-xs text-slate-500">
-            Ready to settle · {state.settings.settlementBank}
+            {t('overview.kpiReadyToSettle', { bank: state.settings.settlementBank })}
           </p>
         </button>
       </div>
@@ -225,8 +237,10 @@ export function OverviewPage() {
         <div className="flex flex-col justify-between gap-5 rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
           {/* Action Queue */}
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Action Queue</h2>
-            <p className="text-xs text-slate-500">Items requiring merchant attention</p>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {t('overview.actionQueueTitle')}
+            </h2>
+            <p className="text-xs text-slate-500">{t('overview.actionQueueSubtitle')}</p>
             <div className="mt-3.5 space-y-2">
               <button
                 type="button"
@@ -235,7 +249,7 @@ export function OverviewPage() {
               >
                 <span className="flex items-center gap-2.5 text-xs font-medium text-slate-800">
                   <ShoppingBag className="h-4 w-4 text-blue-600" />
-                  Orders to fulfill
+                  {t('overview.ordersToFulfill')}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 tabular-nums">
                   {unfulfilledCount}
@@ -250,7 +264,7 @@ export function OverviewPage() {
               >
                 <span className="flex items-center gap-2.5 text-xs font-medium text-slate-800">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  Low / out-of-stock SKUs
+                  {t('overview.lowOosSkus')}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 tabular-nums">
                   {lowStockItems.length}
@@ -265,7 +279,7 @@ export function OverviewPage() {
               >
                 <span className="flex items-center gap-2.5 text-xs font-medium text-slate-800">
                   <RotateCcw className="h-4 w-4 text-rose-600" />
-                  Open refund requests
+                  {t('overview.openRefundRequests')}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 tabular-nums">
                   {refundReqCount}
@@ -279,18 +293,22 @@ export function OverviewPage() {
           <div className="border-t border-slate-100 pt-4">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                Sales by Channel
+                {t('overview.salesByChannel')}
               </h3>
-              <span className="text-[11px] text-slate-400">{range.toUpperCase()} share</span>
+              <span className="text-[11px] text-slate-400">
+                {t('overview.rangeShare', { range: rangeLabel })}
+              </span>
             </div>
             <div className="space-y-2.5">
               {channelMix.map((row) => (
                 <div key={row.channel}>
                   <div className="mb-1 flex items-center justify-between text-xs tabular-nums">
-                    <span className="font-medium text-slate-700">{row.channel}</span>
+                    <span className="font-medium text-slate-700">
+                      {t(getChannelKey(row.channel))}
+                    </span>
                     <span className="text-slate-500">
                       <span className="font-medium text-slate-800">
-                        {formatCurrency(row.amount, currency, { compact: true })}
+                        {formatCurrency(row.amount, currency, { compact: true, locale })}
                       </span>{' '}
                       ({row.share}%)
                     </span>
@@ -314,15 +332,17 @@ export function OverviewPage() {
         <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs xl:col-span-2">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Recent Orders</h2>
-              <p className="text-xs text-slate-500">Select an order to inspect or dispatch</p>
+              <h2 className="text-sm font-semibold text-slate-900">
+                {t('overview.recentOrdersTitle')}
+              </h2>
+              <p className="text-xs text-slate-500">{t('overview.recentOrdersSubtitle')}</p>
             </div>
             <button
               type="button"
               onClick={() => setActiveSection('orders')}
               className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-800"
             >
-              View all
+              {t('common.viewAll')}
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -330,46 +350,51 @@ export function OverviewPage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-                  <th className="px-5 py-2.5">Order</th>
-                  <th className="px-4 py-2.5">Customer</th>
-                  <th className="hidden px-4 py-2.5 sm:table-cell">Channel</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-5 py-2.5 text-right">Total</th>
+                  <th className="px-5 py-2.5">{t('overview.colOrder')}</th>
+                  <th className="px-4 py-2.5">{t('common.customer')}</th>
+                  <th className="hidden px-4 py-2.5 sm:table-cell">{t('common.channel')}</th>
+                  <th className="px-4 py-2.5">{t('common.status')}</th>
+                  <th className="px-5 py-2.5 text-right">{t('common.total')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {recentOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => setInspectOrderId(order.id)}
-                    className="cursor-pointer transition-colors hover:bg-slate-50/90"
-                  >
-                    <td className="px-5 py-3 whitespace-nowrap">
-                      <div className="font-semibold text-slate-900 tabular-nums">
-                        {order.orderNumber}
-                      </div>
-                      <div className="text-[11px] text-slate-400 tabular-nums">
-                        {formatShortDate(order.createdAt)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">{order.customerName}</div>
-                      <div className="text-[11px] text-slate-400 tabular-nums">
-                        {order.items.reduce((s, i) => s + i.quantity, 0)} item
-                        {order.items.reduce((s, i) => s + i.quantity, 0) === 1 ? '' : 's'}
-                      </div>
-                    </td>
-                    <td className="hidden px-4 py-3 text-slate-600 whitespace-nowrap sm:table-cell">
-                      {order.channel}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <OrderStatusBadge status={order.status} />
-                    </td>
-                    <td className="px-5 py-3 text-right font-semibold text-slate-900 whitespace-nowrap tabular-nums">
-                      {formatCurrency(order.total, currency)}
-                    </td>
-                  </tr>
-                ))}
+                {recentOrders.map((order) => {
+                  const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
+                  return (
+                    <tr
+                      key={order.id}
+                      onClick={() => setInspectOrderId(order.id)}
+                      className="cursor-pointer transition-colors hover:bg-slate-50/90"
+                    >
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <div className="font-semibold text-slate-900 tabular-nums">
+                          {order.orderNumber}
+                        </div>
+                        <div className="text-[11px] text-slate-400 tabular-nums">
+                          {formatShortDate(order.createdAt, locale)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-800">{order.customerName}</div>
+                        <div className="text-[11px] text-slate-400 tabular-nums">
+                          {t(
+                            itemCount === 1 ? 'common.itemCountOne' : 'common.itemCountOther',
+                            { count: itemCount }
+                          )}
+                        </div>
+                      </td>
+                      <td className="hidden px-4 py-3 text-slate-600 whitespace-nowrap sm:table-cell">
+                        {t(getChannelKey(order.channel))}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <OrderStatusBadge status={order.status} />
+                      </td>
+                      <td className="px-5 py-3 text-right font-semibold text-slate-900 whitespace-nowrap tabular-nums">
+                        {formatCurrency(order.total, currency)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -379,15 +404,17 @@ export function OverviewPage() {
         <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-2xs">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Top Products</h2>
-              <p className="text-xs text-slate-500">Ranked by cumulative revenue</p>
+              <h2 className="text-sm font-semibold text-slate-900">
+                {t('overview.topProductsTitle')}
+              </h2>
+              <p className="text-xs text-slate-500">{t('overview.topProductsSubtitle')}</p>
             </div>
             <button
               type="button"
               onClick={() => setActiveSection('products')}
               className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-800"
             >
-              Catalog
+              {t('overview.catalogLink')}
               <Package className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -407,10 +434,12 @@ export function OverviewPage() {
                     />
                     <div className="min-w-0">
                       <div className="truncate text-xs font-medium text-slate-900">
-                        {prod.name}
+                        {tc(prod.name)}
                       </div>
                       <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500 tabular-nums">
-                        <span>{formatNumber(prod.soldCount)} sold</span>
+                        <span>
+                          {t('common.soldCount', { count: formatNumber(prod.soldCount) })}
+                        </span>
                         <span>·</span>
                         <span
                           className={
@@ -421,13 +450,15 @@ export function OverviewPage() {
                                 : 'text-slate-500'
                           }
                         >
-                          {prod.stock === 0 ? 'Out of stock' : `${prod.stock} left`}
+                          {prod.stock === 0
+                            ? t('common.outOfStock')
+                            : t('common.leftCount', { count: prod.stock })}
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="shrink-0 text-right text-xs font-semibold text-slate-900 tabular-nums">
-                    {formatCurrency(prod.grossRevenue, currency, { compact: true })}
+                    {formatCurrency(prod.grossRevenue, currency, { compact: true, locale })}
                   </div>
                 </li>
               );

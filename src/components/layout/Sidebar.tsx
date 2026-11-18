@@ -9,6 +9,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 import { useMerchant } from '../../store/MerchantContext';
 import type { NavSection } from '../../types/merchant';
 
@@ -19,6 +20,7 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const { state, activeSection, setActiveSection } = useMerchant();
+  const { t } = useI18n();
 
   const actionableOrders = state.orders.filter(
     (o) => o.status === 'to_fulfill' || o.status === 'refund_requested'
@@ -35,28 +37,28 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
     badge?: number;
     badgeTone?: 'teal' | 'amber';
   }[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
     {
       id: 'orders',
-      label: 'Orders',
+      label: t('nav.orders'),
       icon: ShoppingBag,
       badge: actionableOrders > 0 ? actionableOrders : undefined,
       badgeTone: 'teal',
     },
     {
       id: 'products',
-      label: 'Products',
+      label: t('nav.products'),
       icon: Package,
       badge: lowStockCount > 0 ? lowStockCount : undefined,
       badgeTone: 'amber',
     },
-    { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'promotions', label: 'Promotions', icon: Tag },
+    { id: 'customers', label: t('nav.customers'), icon: Users },
+    { id: 'promotions', label: t('nav.promotions'), icon: Tag },
   ];
 
   const secondaryItems: { id: NavSection; label: string; icon: typeof Wallet }[] = [
-    { id: 'finance', label: 'Finance & Payouts', icon: Wallet },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'finance', label: t('nav.finance'), icon: Wallet },
+    { id: 'settings', label: t('nav.settings'), icon: Settings },
   ];
 
   const handleSelect = (id: NavSection) => {
@@ -83,7 +85,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                 }`}
               />
               <span className="truncate">
-                {state.settings.storefrontLive ? 'Storefront live' : 'Maintenance mode'}
+                {state.settings.storefrontLive ? t('app.storefrontLive') : t('app.maintenanceMode')}
               </span>
             </div>
           </div>
@@ -91,7 +93,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
         <button
           type="button"
           onClick={onCloseMobile}
-          aria-label="Close navigation"
+          aria-label={t('app.closeNav')}
           className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden"
         >
           <X className="h-4 w-4" />
@@ -99,10 +101,13 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       </div>
 
       {/* Navigation Groups */}
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4" aria-label="Main navigation">
+      <nav
+        className="flex-1 space-y-6 overflow-y-auto px-3 py-4"
+        aria-label={t('app.mainNav')}
+      >
         <div>
           <div className="mb-1.5 px-2.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-            Commerce
+            {t('nav.groupCommerce')}
           </div>
           <ul className="space-y-0.5">
             {primaryItems.map((item) => {
@@ -150,7 +155,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
 
         <div>
           <div className="mb-1.5 px-2.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-            Operations
+            {t('nav.groupOperations')}
           </div>
           <ul className="space-y-0.5">
             {secondaryItems.map((item) => {
@@ -184,13 +189,13 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       <div className="border-t border-slate-200/80 p-3">
         <div className="rounded-lg bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200/70 ring-inset">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-slate-700">Mercato Console</span>
+            <span className="font-medium text-slate-700">{t('app.consoleName')}</span>
             <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 ring-1 ring-slate-200">
               PRO
             </span>
           </div>
           <div className="mt-1 truncate text-[11px] text-slate-500 tabular-nums">
-            ID: MCH-88412 · {state.settings.currency}
+            {t('app.merchantId', { currency: state.settings.currency })}
           </div>
         </div>
       </div>

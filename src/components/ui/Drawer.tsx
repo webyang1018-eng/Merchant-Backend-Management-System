@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface DrawerProps {
   open: boolean;
@@ -11,6 +12,7 @@ interface DrawerProps {
 }
 
 export function Drawer({ open, onClose, title, subtitle, children, footer }: DrawerProps) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -44,7 +46,7 @@ export function Drawer({ open, onClose, title, subtitle, children, footer }: Dra
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close panel"
+            aria-label={t('app.closePanel')}
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-4 w-4" />

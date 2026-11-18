@@ -1359,23 +1359,31 @@ const BASELINE_12M = [
 export function getAnalyticsSeries(
   range: DateRangeKey,
   liveDeltaRevenue = 0,
-  liveDeltaOrders = 0
+  liveDeltaOrders = 0,
+  locale: 'en' | 'zh' = 'en'
 ): {
   points: DailyMetricPoint[];
   deltas: { revenue: number; orders: number; aov: number; fulfillment: number };
 } {
   const anchor = new Date('2026-11-18T12:00:00Z');
+  const formatDayLabel = (d: Date) =>
+    locale === 'zh'
+      ? `${d.getUTCMonth() + 1}月${d.getUTCDate()}日`
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
   if (range === '12m') {
-    const points = BASELINE_12M.map((item, idx) =>
-      idx === BASELINE_12M.length - 1
+    const points = BASELINE_12M.map((item, idx) => {
+      const [yr, mo] = item.date.split('-');
+      const zhLabel = `${yr.slice(2)}年${Number(mo)}月`;
+      const localized = { ...item, label: locale === 'zh' ? zhLabel : item.label };
+      return idx === BASELINE_12M.length - 1
         ? {
-            ...item,
+            ...localized,
             revenue: Math.max(0, Number((item.revenue + liveDeltaRevenue).toFixed(2))),
             orders: Math.max(0, item.orders + liveDeltaOrders),
           }
-        : item
-    );
+        : localized;
+    });
     return {
       points,
       deltas: { revenue: 18.4, orders: 15.2, aov: 2.8, fulfillment: 1.4 },
@@ -1394,7 +1402,7 @@ export function getAnalyticsSeries(
       const isLast = idx === weeklyRev.length - 1;
       return {
         date: d.toISOString().slice(0, 10),
-        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+        label: formatDayLabel(d),
         revenue: Math.max(0, Number((rev + (isLast ? liveDeltaRevenue : 0)).toFixed(2))),
         orders: Math.max(0, weeklyOrd[idx] + (isLast ? liveDeltaOrders : 0)),
         refunds: Math.round(rev * 0.022),
@@ -1416,7 +1424,7 @@ export function getAnalyticsSeries(
     const isLast = idx === sliceLen - 1;
     return {
       date: d.toISOString().slice(0, 10),
-      label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+      label: formatDayLabel(d),
       revenue: Math.max(0, Number((rev + (isLast ? liveDeltaRevenue : 0)).toFixed(2))),
       orders: Math.max(0, ordSlice[idx] + (isLast ? liveDeltaOrders : 0)),
       refunds: Math.round(rev * 0.024),

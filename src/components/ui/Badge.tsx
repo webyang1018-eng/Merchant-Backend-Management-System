@@ -1,6 +1,16 @@
 import React from 'react';
+import { useI18n } from '../../i18n/I18nContext';
+import {
+  getLedgerTypeKey,
+  getOrderStatusKey,
+  getPayoutStatusKey,
+  getProductStatusKey,
+  getPromoStatusKey,
+  getSegmentKey,
+} from '../../i18n/translations';
 import type {
   CustomerSegment,
+  LedgerType,
   OrderStatus,
   PayoutStatus,
   ProductStatus,
@@ -56,62 +66,74 @@ export function Badge({
   );
 }
 
-export const ORDER_STATUS_META: Record<OrderStatus, { label: string; tone: BadgeTone }> = {
-  pending_payment: { label: 'Pending Payment', tone: 'amber' },
-  to_fulfill: { label: 'To Fulfill', tone: 'blue' },
-  shipped: { label: 'Shipped', tone: 'violet' },
-  delivered: { label: 'Delivered', tone: 'emerald' },
-  refund_requested: { label: 'Refund Requested', tone: 'rose' },
-  refunded: { label: 'Refunded', tone: 'slate' },
-  cancelled: { label: 'Cancelled', tone: 'slate' },
+const ORDER_STATUS_TONES: Record<OrderStatus, BadgeTone> = {
+  pending_payment: 'amber',
+  to_fulfill: 'blue',
+  shipped: 'violet',
+  delivered: 'emerald',
+  refund_requested: 'rose',
+  refunded: 'slate',
+  cancelled: 'slate',
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const meta = ORDER_STATUS_META[status];
-  return <Badge tone={meta.tone}>{meta.label}</Badge>;
+  const { t } = useI18n();
+  return <Badge tone={ORDER_STATUS_TONES[status]}>{t(getOrderStatusKey(status))}</Badge>;
 }
 
-export const PRODUCT_STATUS_META: Record<ProductStatus, { label: string; tone: BadgeTone }> = {
-  active: { label: 'Active', tone: 'emerald' },
-  draft: { label: 'Draft', tone: 'amber' },
-  archived: { label: 'Archived', tone: 'slate' },
+const PRODUCT_STATUS_TONES: Record<ProductStatus, BadgeTone> = {
+  active: 'emerald',
+  draft: 'amber',
+  archived: 'slate',
 };
 
 export function ProductStatusBadge({ status }: { status: ProductStatus }) {
-  const meta = PRODUCT_STATUS_META[status];
-  return <Badge tone={meta.tone}>{meta.label}</Badge>;
+  const { t } = useI18n();
+  return <Badge tone={PRODUCT_STATUS_TONES[status]}>{t(getProductStatusKey(status))}</Badge>;
 }
 
-export const PROMO_STATUS_META: Record<PromotionStatus, { label: string; tone: BadgeTone }> = {
-  active: { label: 'Active', tone: 'emerald' },
-  scheduled: { label: 'Scheduled', tone: 'blue' },
-  paused: { label: 'Paused', tone: 'amber' },
-  expired: { label: 'Expired', tone: 'slate' },
+const PROMO_STATUS_TONES: Record<PromotionStatus, BadgeTone> = {
+  active: 'emerald',
+  scheduled: 'blue',
+  paused: 'amber',
+  expired: 'slate',
 };
 
 export function PromoStatusBadge({ status }: { status: PromotionStatus }) {
-  const meta = PROMO_STATUS_META[status];
-  return <Badge tone={meta.tone}>{meta.label}</Badge>;
+  const { t } = useI18n();
+  return <Badge tone={PROMO_STATUS_TONES[status]}>{t(getPromoStatusKey(status))}</Badge>;
 }
 
-export const PAYOUT_STATUS_META: Record<PayoutStatus, { label: string; tone: BadgeTone }> = {
-  paid: { label: 'Paid', tone: 'emerald' },
-  in_transit: { label: 'In Transit', tone: 'blue' },
-  processing: { label: 'Processing', tone: 'amber' },
+const PAYOUT_STATUS_TONES: Record<PayoutStatus, BadgeTone> = {
+  paid: 'emerald',
+  in_transit: 'blue',
+  processing: 'amber',
 };
 
 export function PayoutStatusBadge({ status }: { status: PayoutStatus }) {
-  const meta = PAYOUT_STATUS_META[status];
-  return <Badge tone={meta.tone}>{meta.label}</Badge>;
+  const { t } = useI18n();
+  return <Badge tone={PAYOUT_STATUS_TONES[status]}>{t(getPayoutStatusKey(status))}</Badge>;
 }
 
-export const SEGMENT_META: Record<CustomerSegment, { tone: BadgeTone }> = {
-  VIP: { tone: 'violet' },
-  Returning: { tone: 'emerald' },
-  New: { tone: 'blue' },
-  'At Risk': { tone: 'amber' },
+const LEDGER_TYPE_TONES: Record<LedgerType, BadgeTone> = {
+  charge: 'emerald',
+  refund: 'rose',
+  payout: 'blue',
+};
+
+export function LedgerTypeBadge({ type }: { type: LedgerType }) {
+  const { t } = useI18n();
+  return <Badge tone={LEDGER_TYPE_TONES[type]}>{t(getLedgerTypeKey(type))}</Badge>;
+}
+
+const SEGMENT_TONES: Record<CustomerSegment, BadgeTone> = {
+  VIP: 'violet',
+  Returning: 'emerald',
+  New: 'blue',
+  'At Risk': 'amber',
 };
 
 export function SegmentBadge({ segment }: { segment: CustomerSegment }) {
-  return <Badge tone={SEGMENT_META[segment].tone}>{segment}</Badge>;
+  const { t } = useI18n();
+  return <Badge tone={SEGMENT_TONES[segment]}>{t(getSegmentKey(segment))}</Badge>;
 }

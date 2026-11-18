@@ -10,7 +10,8 @@ A full-featured merchant backend console built with **React 19**, **TypeScript**
 - **Customer CRM**: Segment filtering (`VIP`, `Returning`, `New`, `At Risk`), lifetime spend & order metrics, new customer creation, editable tags & account notes, and linked order history.
 - **Promotions & Coupons**: Percentage, fixed-amount, and free-shipping discount codes with redemption progress bars, validity dates, pause/resume controls, and one-click code copy.
 - **Finance & Payouts**: Available balance, pending settlement tracking, standard and instant bank withdrawal workflow, payout history, transaction ledger, and CSV statement export.
-- **Store Settings & RBAC**: Store profile & currency localization (`USD`, `SGD`, `EUR`, `GBP`), storefront live/maintenance toggle, configurable tax and regional shipping zones, staff invites & role management, operational alert toggles, and demo data reset.
+- **Bilingual Internationalization (中文 / English)**: Instant `EN` / `中文` switching from the top bar, store settings, or command palette (`⌘K`), strongly typed translation dictionaries with full placeholder parity, browser language detection, `localStorage` persistence, `<html lang>` & page title updates, and locale-aware dates, compact currency units, chart labels, CSV headers, and operational statuses.
+- **Store Settings & RBAC**: Store profile, console language (`English` / `简体中文`) & currency localization (`USD`, `CNY`, `SGD`, `EUR`, `GBP`), storefront live/maintenance toggle, configurable tax and regional shipping zones, staff invites & role management, operational alert toggles, and demo data reset.
 - **Global Productivity**: Command palette (`⌘K` / `Ctrl+K`), actionable header alert center, and automatic `localStorage` persistence.
 
 ## Getting Started

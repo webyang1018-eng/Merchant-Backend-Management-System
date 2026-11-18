@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Copy, Edit3, Pause, Play, Plus, Trash2 } from 'lucide-react';
 import { PromoStatusBadge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
+import { useI18n } from '../i18n/I18nContext';
+import { getPromoStatusKey } from '../i18n/translations';
 import { useMerchant } from '../store/MerchantContext';
 import type { Promotion, PromotionStatus, PromotionType } from '../types/merchant';
 import { formatCurrency, formatNumber, getCurrencySymbol } from '../utils/format';
 
 export function PromotionsPage() {
   const { state, dispatch, quickAction, setQuickAction, pushToast } = useMerchant();
+  const { t, tc } = useI18n();
   const currency = state.settings.currency;
 
   const [statusFilter, setStatusFilter] = useState<'all' | PromotionStatus>('all');
@@ -30,9 +33,11 @@ export function PromotionsPage() {
   const totalRedemptions = state.promotions.reduce((s, p) => s + p.usageCount, 0);
 
   const formatBenefit = (p: Promotion) => {
-    if (p.type === 'percentage') return `${p.value}% off`;
-    if (p.type === 'fixed') return `${formatCurrency(p.value, currency)} off`;
-    return 'Free shipping';
+    if (p.type === 'percentage') return t('promos.benefitPct', { value: p.value });
+    if (p.type === 'fixed') {
+      return t('promos.benefitFixed', { amount: formatCurrency(p.value, currency) });
+    }
+    return t('promos.benefitFreeShip');
   };
 
   const handleCopy = async (code: string) => {
@@ -41,16 +46,18 @@ export function PromotionsPage() {
     } catch {
       // Fallback ignored in restricted sandboxes
     }
-    pushToast(`Copied "${code}"`, 'Ready to share or apply in manual orders.', 'info');
+    pushToast(
+      t('promos.toastCopiedTitle', { code }),
+      t('promos.toastCopiedDesc'),
+      'info'
+    );
   };
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">
-          Configure coupon codes, minimum cart thresholds, and seasonal campaign caps.
-        </p>
+        <p className="text-sm text-slate-600">{t('promos.subtitle')}</p>
         <button
           type="button"
           onClick={() => {
@@ -60,26 +67,26 @@ export function PromotionsPage() {
           className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-teal-800"
         >
           <Plus className="h-3.5 w-3.5" />
-          Create Discount
+          {t('promos.createBtn')}
         </button>
       </div>
 
       {/* Summary Strip */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Active Codes</div>
+          <div className="text-xs text-slate-500">{t('promos.metricActive')}</div>
           <div className="mt-1 text-xl font-semibold text-emerald-700 tabular-nums">
             {activeCount}
           </div>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Total Redemptions</div>
+          <div className="text-xs text-slate-500">{t('promos.metricRedemptions')}</div>
           <div className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
             {formatNumber(totalRedemptions)}
           </div>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Scheduled Campaigns</div>
+          <div className="text-xs text-slate-500">{t('promos.metricScheduled')}</div>
           <div className="mt-1 text-xl font-semibold text-blue-700 tabular-nums">
             {state.promotions.filter((p) => p.status === 'scheduled').length}
           </div>
@@ -96,13 +103,13 @@ export function PromotionsPage() {
                 key={st}
                 type="button"
                 onClick={() => setStatusFilter(st)}
-                className={`shrink-0 border-b-2 px-3 py-2.5 text-xs font-medium capitalize transition-colors ${
+                className={`shrink-0 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
                   active
                     ? 'border-teal-700 text-teal-800'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {st === 'all' ? 'All Codes' : st}
+                {st === 'all' ? t('promos.tabAll') : t(getPromoStatusKey(st))}
               </button>
             );
           })}
@@ -112,19 +119,19 @@ export function PromotionsPage() {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-                <th className="px-5 py-3">Code &amp; Campaign</th>
-                <th className="px-4 py-3">Discount</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Usage</th>
-                <th className="hidden px-4 py-3 md:table-cell">Valid Window</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3">{t('promos.colCode')}</th>
+                <th className="px-4 py-3">{t('promos.colDiscount')}</th>
+                <th className="px-4 py-3">{t('common.status')}</th>
+                <th className="px-4 py-3">{t('promos.colUsage')}</th>
+                <th className="hidden px-4 py-3 md:table-cell">{t('promos.colWindow')}</th>
+                <th className="px-5 py-3 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {visible.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                    No discount codes in this state.
+                    {t('promos.empty')}
                   </td>
                 </tr>
               ) : (
@@ -142,18 +149,20 @@ export function PromotionsPage() {
                           <button
                             type="button"
                             onClick={() => handleCopy(promo.code)}
-                            aria-label={`Copy ${promo.code}`}
+                            aria-label={t('promos.copyAria', { code: promo.code })}
                             className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                           >
                             <Copy className="h-3 w-3" />
                           </button>
                         </div>
-                        <div className="mt-1 text-[11px] text-slate-500">{promo.title}</div>
+                        <div className="mt-1 text-[11px] text-slate-500">{tc(promo.title)}</div>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap tabular-nums">
                         <div className="font-semibold text-slate-900">{formatBenefit(promo)}</div>
                         <div className="text-[11px] text-slate-400">
-                          Min. {formatCurrency(promo.minOrderAmount, currency)}
+                          {t('promos.minOrder', {
+                            amount: formatCurrency(promo.minOrderAmount, currency),
+                          })}
                         </div>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
@@ -162,7 +171,9 @@ export function PromotionsPage() {
                       <td className="px-4 py-3.5 whitespace-nowrap tabular-nums">
                         <div className="text-slate-700">
                           {formatNumber(promo.usageCount)}
-                          {promo.usageLimit ? ` / ${formatNumber(promo.usageLimit)}` : ' (unlimited)'}
+                          {promo.usageLimit
+                            ? ` / ${formatNumber(promo.usageLimit)}`
+                            : t('promos.unlimitedSuffix')}
                         </div>
                         {pct !== null && (
                           <div className="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
@@ -183,12 +194,19 @@ export function PromotionsPage() {
                             onClick={() => {
                               dispatch({ type: 'TOGGLE_PROMOTION', payload: { id: promo.id } });
                               pushToast(
-                                promo.status === 'active'
-                                  ? `Paused ${promo.code}`
-                                  : `Activated ${promo.code}`
+                                t(
+                                  promo.status === 'active'
+                                    ? 'promos.toastPaused'
+                                    : 'promos.toastActivated',
+                                  { code: promo.code }
+                                )
                               );
                             }}
-                            title={promo.status === 'active' ? 'Pause code' : 'Activate code'}
+                            title={
+                              promo.status === 'active'
+                                ? t('promos.pauseTitle')
+                                : t('promos.activateTitle')
+                            }
                             className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                           >
                             {promo.status === 'active' ? (
@@ -203,7 +221,7 @@ export function PromotionsPage() {
                               setEditing(promo);
                               setModalOpen(true);
                             }}
-                            title="Edit promotion"
+                            title={t('promos.editTitle')}
                             className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                           >
                             <Edit3 className="h-3.5 w-3.5" />
@@ -212,9 +230,13 @@ export function PromotionsPage() {
                             type="button"
                             onClick={() => {
                               dispatch({ type: 'DELETE_PROMOTION', payload: { id: promo.id } });
-                              pushToast(`Deleted ${promo.code}`, undefined, 'info');
+                              pushToast(
+                                t('promos.toastDeleted', { code: promo.code }),
+                                undefined,
+                                'info'
+                              );
                             }}
-                            title="Delete promotion"
+                            title={t('promos.deleteTitle')}
                             className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -249,6 +271,7 @@ function PromoEditorModal({
   onClose: () => void;
 }) {
   const { state, dispatch, pushToast } = useMerchant();
+  const { t } = useI18n();
   const sym = getCurrencySymbol(state.settings.currency);
 
   const [code, setCode] = useState('');
@@ -292,12 +315,12 @@ function PromoEditorModal({
     e.preventDefault();
     const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '');
     if (!cleanCode || !title.trim()) {
-      setError('Coupon code and campaign title are required.');
+      setError(t('promoModal.errReq'));
       return;
     }
     const numVal = type === 'free_shipping' ? 0 : Math.max(0, Number(value) || 0);
     if (type === 'percentage' && (numVal <= 0 || numVal > 95)) {
-      setError('Percentage discount must be between 1% and 95%.');
+      setError(t('promoModal.errPct'));
       return;
     }
     const base = {
@@ -314,10 +337,16 @@ function PromoEditorModal({
 
     if (promotion) {
       dispatch({ type: 'UPDATE_PROMOTION', payload: { ...promotion, ...base } });
-      pushToast(`Updated ${cleanCode}`, 'Promotion rules saved.');
+      pushToast(
+        t('promoModal.toastUpdatedTitle', { code: cleanCode }),
+        t('promoModal.toastUpdatedDesc')
+      );
     } else {
       dispatch({ type: 'ADD_PROMOTION', payload: base });
-      pushToast(`Created ${cleanCode}`, 'Code is now ready for checkout.');
+      pushToast(
+        t('promoModal.toastCreatedTitle', { code: cleanCode }),
+        t('promoModal.toastCreatedDesc')
+      );
     }
     onClose();
   };
@@ -326,8 +355,8 @@ function PromoEditorModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={promotion ? 'Edit Discount Code' : 'Create Discount Code'}
-      subtitle="Define redemption rules and eligibility dates."
+      title={promotion ? t('promoModal.editTitle') : t('promoModal.createTitle')}
+      subtitle={t('promoModal.subtitle')}
       footer={
         <>
           <button
@@ -335,14 +364,14 @@ function PromoEditorModal({
             onClick={onClose}
             className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             form="promo-form"
             className="rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
           >
-            {promotion ? 'Save Changes' : 'Create Discount'}
+            {promotion ? t('common.saveChanges') : t('promos.createBtn')}
           </button>
         </>
       }
@@ -355,61 +384,67 @@ function PromoEditorModal({
         )}
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Coupon Code</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('promoModal.fieldCode')}
+            </label>
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="HOLIDAY20"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono uppercase text-slate-900 focus:border-teal-600 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-slate-900 uppercase focus:border-teal-600 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Status</label>
+            <label className="mb-1 block font-medium text-slate-700">{t('common.status')}</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as PromotionStatus)}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
             >
-              <option value="active">Active</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="paused">Paused</option>
-              <option value="expired">Expired</option>
+              <option value="active">{t('promoStatus.active')}</option>
+              <option value="scheduled">{t('promoStatus.scheduled')}</option>
+              <option value="paused">{t('promoStatus.paused')}</option>
+              <option value="expired">{t('promoStatus.expired')}</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block font-medium text-slate-700">Campaign Title</label>
+          <label className="mb-1 block font-medium text-slate-700">
+            {t('promoModal.fieldCampaign')}
+          </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Winter Gifting Preview — 20% Off"
+            placeholder={t('promoModal.campaignPlaceholder')}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
           />
         </div>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Discount Type</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('promoModal.fieldType')}
+            </label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as PromotionType)}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
             >
-              <option value="percentage">Percentage off (%)</option>
-              <option value="fixed">Fixed amount off ({sym})</option>
-              <option value="free_shipping">Free shipping</option>
+              <option value="percentage">{t('promoModal.typePct')}</option>
+              <option value="fixed">{t('promoModal.typeFixed', { sym })}</option>
+              <option value="free_shipping">{t('promoModal.typeFreeShip')}</option>
             </select>
           </div>
           <div>
             <label className="mb-1 block font-medium text-slate-700">
               {type === 'percentage'
-                ? 'Discount (%)'
+                ? t('promoModal.fieldPctVal')
                 : type === 'fixed'
-                  ? `Discount Amount (${sym})`
-                  : 'Value'}
+                  ? t('promoModal.fieldFixedVal', { sym })
+                  : t('promoModal.fieldVal')}
             </label>
             <input
               type="number"
@@ -425,7 +460,7 @@ function PromoEditorModal({
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
             <label className="mb-1 block font-medium text-slate-700">
-              Minimum Order ({sym})
+              {t('promoModal.fieldMinOrder', { sym })}
             </label>
             <input
               type="number"
@@ -437,14 +472,14 @@ function PromoEditorModal({
           </div>
           <div>
             <label className="mb-1 block font-medium text-slate-700">
-              Usage Limit (leave blank for unlimited)
+              {t('promoModal.fieldLimit')}
             </label>
             <input
               type="number"
               min="1"
               value={usageLimit}
               onChange={(e) => setUsageLimit(e.target.value)}
-              placeholder="Unlimited"
+              placeholder={t('common.unlimited')}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 tabular-nums focus:border-teal-600 focus:outline-none"
             />
           </div>
@@ -452,7 +487,9 @@ function PromoEditorModal({
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Start Date</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('promoModal.fieldStart')}
+            </label>
             <input
               type="date"
               value={startsAt}
@@ -461,7 +498,9 @@ function PromoEditorModal({
             />
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">End Date</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('promoModal.fieldEnd')}
+            </label>
             <input
               type="date"
               value={endsAt}

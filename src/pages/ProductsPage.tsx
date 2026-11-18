@@ -13,6 +13,8 @@ import {
 import { Badge, ProductStatusBadge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { ProductSwatch } from '../components/ui/ProductSwatch';
+import { useI18n } from '../i18n/I18nContext';
+import { getCategoryKey, getProductStatusKey } from '../i18n/translations';
 import { useMerchant } from '../store/MerchantContext';
 import type { Product, ProductCategory, ProductStatus } from '../types/merchant';
 import {
@@ -46,6 +48,7 @@ type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
 
 export function ProductsPage() {
   const { state, dispatch, quickAction, setQuickAction, pushToast } = useMerchant();
+  const { t, tc } = useI18n();
   const currency = state.settings.currency;
 
   const [statusFilter, setStatusFilter] = useState<'all' | ProductStatus>('all');
@@ -96,20 +99,22 @@ export function ProductsPage() {
       if (q) {
         const hit =
           p.name.toLowerCase().includes(q) ||
+          tc(p.name).toLowerCase().includes(q) ||
           p.sku.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q);
+          p.category.toLowerCase().includes(q) ||
+          t(getCategoryKey(p.category)).toLowerCase().includes(q);
         if (!hit) return false;
       }
       return true;
     });
 
     return [...list].sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (sortBy === 'name') return tc(a.name).localeCompare(tc(b.name));
       if (sortBy === 'price_desc') return b.price - a.price;
       if (sortBy === 'stock_asc') return a.stock - b.stock;
       return b.soldCount - a.soldCount;
     });
-  }, [state.products, statusFilter, categoryFilter, stockFilter, search, sortBy]);
+  }, [state.products, statusFilter, categoryFilter, stockFilter, search, sortBy, t, tc]);
 
   const toggleAll = () => {
     const ids = filteredProducts.map((p) => p.id);
@@ -120,8 +125,8 @@ export function ProductsPage() {
   const handleBulkStatus = (status: ProductStatus) => {
     dispatch({ type: 'BULK_PRODUCT_STATUS', payload: { ids: selectedIds, status } });
     pushToast(
-      `Updated ${selectedIds.length} product(s)`,
-      `Status changed to ${status}.`
+      t('products.toastBulkStatusTitle', { count: selectedIds.length }),
+      t('products.toastBulkStatusDesc', { status: t(getProductStatusKey(status)) })
     );
     setSelectedIds([]);
   };
@@ -129,30 +134,34 @@ export function ProductsPage() {
   const handleBulkDelete = () => {
     const count = selectedIds.length;
     dispatch({ type: 'DELETE_PRODUCTS', payload: selectedIds });
-    pushToast(`Deleted ${count} product(s)`, 'Removed from merchant catalog.', 'info');
+    pushToast(
+      t('products.toastBulkDeleteTitle', { count }),
+      t('products.toastBulkDeleteDesc'),
+      'info'
+    );
     setSelectedIds([]);
   };
 
   const handleExport = () => {
     const headers = [
-      'SKU',
-      'Product Name',
-      'Category',
-      'Status',
-      'Retail Price',
-      'Unit Cost',
-      'Margin %',
-      'Stock',
-      'Low Stock Threshold',
-      'Units Sold',
+      t('products.csvSku'),
+      t('products.csvName'),
+      t('products.csvCategory'),
+      t('products.csvStatus'),
+      t('products.csvRetailPrice'),
+      t('products.csvUnitCost'),
+      t('products.csvMargin'),
+      t('products.csvStock'),
+      t('products.csvThreshold'),
+      t('products.csvSold'),
     ];
     const rows = filteredProducts.map((p) => {
       const { marginPct } = calculateMargin(p.price, p.cost);
       return [
         p.sku,
-        p.name,
-        p.category,
-        p.status,
+        tc(p.name),
+        t(getCategoryKey(p.category)),
+        t(getProductStatusKey(p.status)),
         p.price.toFixed(2),
         p.cost.toFixed(2),
         marginPct,
@@ -162,16 +171,18 @@ export function ProductsPage() {
       ];
     });
     downloadCsv('catalog-inventory-2026-11-18.csv', headers, rows);
-    pushToast('Catalog exported', `Downloaded ${rows.length} SKU(s).`, 'info');
+    pushToast(
+      t('products.toastExportTitle'),
+      t('products.toastExportDesc', { count: rows.length }),
+      'info'
+    );
   };
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">
-          Manage product pricing, gross margins, and real-time warehouse stock levels.
-        </p>
+        <p className="text-sm text-slate-600">{t('products.subtitle')}</p>
         <div className="flex items-center gap-2.5">
           <button
             type="button"
@@ -179,7 +190,7 @@ export function ProductsPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50"
           >
             <Download className="h-3.5 w-3.5" />
-            Export CSV
+            {t('common.exportCsv')}
           </button>
           <button
             type="button"
@@ -190,7 +201,7 @@ export function ProductsPage() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-teal-800"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Product
+            {t('products.addProduct')}
           </button>
         </div>
       </div>
@@ -198,14 +209,16 @@ export function ProductsPage() {
       {/* Inventory Summary Strip */}
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Active Catalog</div>
+          <div className="text-xs text-slate-500">{t('products.metricActiveCatalog')}</div>
           <div className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
             {metrics.active}{' '}
-            <span className="text-xs font-normal text-slate-400">/ {metrics.total} SKUs</span>
+            <span className="text-xs font-normal text-slate-400">
+              {t('products.metricTotalSkus', { count: metrics.total })}
+            </span>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-2xs">
-          <div className="text-xs text-slate-500">Retail Inventory Value</div>
+          <div className="text-xs text-slate-500">{t('products.metricInventoryValue')}</div>
           <div className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
             {formatCurrency(metrics.inventoryValue, currency)}
           </div>
@@ -218,9 +231,10 @@ export function ProductsPage() {
           }}
           className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 text-left shadow-2xs transition-colors hover:border-amber-300"
         >
-          <div className="text-xs text-slate-500">Low Stock Alerts</div>
+          <div className="text-xs text-slate-500">{t('products.metricLowStock')}</div>
           <div className="mt-1 text-xl font-semibold text-amber-700 tabular-nums">
-            {metrics.low} <span className="text-xs font-normal text-slate-400">SKUs</span>
+            {metrics.low}{' '}
+            <span className="text-xs font-normal text-slate-400">{t('common.skus')}</span>
           </div>
         </button>
         <button
@@ -231,9 +245,10 @@ export function ProductsPage() {
           }}
           className="rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 text-left shadow-2xs transition-colors hover:border-rose-300"
         >
-          <div className="text-xs text-slate-500">Out of Stock</div>
+          <div className="text-xs text-slate-500">{t('products.metricOutOfStock')}</div>
           <div className="mt-1 text-xl font-semibold text-rose-600 tabular-nums">
-            {metrics.oos} <span className="text-xs font-normal text-slate-400">SKUs</span>
+            {metrics.oos}{' '}
+            <span className="text-xs font-normal text-slate-400">{t('common.skus')}</span>
           </div>
         </button>
       </div>
@@ -244,28 +259,28 @@ export function ProductsPage() {
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200/80 px-4 pt-2">
           {(
             [
-              { key: 'all', label: 'All' },
-              { key: 'active', label: 'Active' },
-              { key: 'draft', label: 'Draft' },
-              { key: 'archived', label: 'Archived' },
+              { key: 'all', label: t('products.tabAll') },
+              { key: 'active', label: t('productStatus.active') },
+              { key: 'draft', label: t('productStatus.draft') },
+              { key: 'archived', label: t('productStatus.archived') },
             ] as const
-          ).map((t) => {
-            const active = statusFilter === t.key;
+          ).map((item) => {
+            const active = statusFilter === item.key;
             return (
               <button
-                key={t.key}
+                key={item.key}
                 type="button"
                 onClick={() => {
-                  setStatusFilter(t.key);
+                  setStatusFilter(item.key);
                   setSelectedIds([]);
                 }}
-                className={`border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+                className={`shrink-0 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
                   active
                     ? 'border-teal-700 text-teal-800'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {t.label}
+                {item.label}
               </button>
             );
           })}
@@ -279,45 +294,45 @@ export function ProductsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by product name, SKU, or category..."
+              placeholder={t('products.searchPlaceholder')}
               className="w-full rounded-lg border border-slate-200 py-1.5 pr-3 pl-8.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-teal-600 focus:outline-none"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
-              aria-label="Filter by category"
+              aria-label={t('products.filterCategoryAria')}
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value as typeof categoryFilter)}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-teal-600 focus:outline-none"
             >
-              <option value="all">All categories</option>
+              <option value="all">{t('products.allCategories')}</option>
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {t(getCategoryKey(c))}
                 </option>
               ))}
             </select>
             <select
-              aria-label="Filter by inventory health"
+              aria-label={t('products.filterStockAria')}
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value as StockFilter)}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-teal-600 focus:outline-none"
             >
-              <option value="all">All stock levels</option>
-              <option value="in_stock">Healthy stock</option>
-              <option value="low_stock">Low or out of stock</option>
-              <option value="out_of_stock">Out of stock only</option>
+              <option value="all">{t('products.stockAll')}</option>
+              <option value="in_stock">{t('products.stockHealthy')}</option>
+              <option value="low_stock">{t('products.stockLow')}</option>
+              <option value="out_of_stock">{t('products.stockOos')}</option>
             </select>
             <select
-              aria-label="Sort products"
+              aria-label={t('products.sortAria')}
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-teal-600 focus:outline-none"
             >
-              <option value="sold_desc">Best selling</option>
-              <option value="stock_asc">Lowest stock</option>
-              <option value="price_desc">Highest price</option>
-              <option value="name">Name (A–Z)</option>
+              <option value="sold_desc">{t('products.sortBestSelling')}</option>
+              <option value="stock_asc">{t('products.sortLowestStock')}</option>
+              <option value="price_desc">{t('products.sortHighestPrice')}</option>
+              <option value="name">{t('products.sortName')}</option>
             </select>
             {(stockFilter !== 'all' || categoryFilter !== 'all' || search) && (
               <button
@@ -329,7 +344,7 @@ export function ProductsPage() {
                 }}
                 className="text-xs font-medium text-teal-700 hover:underline"
               >
-                Reset
+                {t('common.reset')}
               </button>
             )}
           </div>
@@ -339,7 +354,10 @@ export function ProductsPage() {
         {selectedIds.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100 bg-teal-50/60 px-4 py-2.5 text-xs">
             <span className="font-medium text-teal-900 tabular-nums">
-              {selectedIds.length} SKU{selectedIds.length > 1 ? 's' : ''} selected
+              {t(
+                selectedIds.length === 1 ? 'products.selectedOne' : 'products.selectedOther',
+                { count: selectedIds.length }
+              )}
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -348,7 +366,7 @@ export function ProductsPage() {
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
               >
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                Set Active
+                {t('products.setActive')}
               </button>
               <button
                 type="button"
@@ -356,7 +374,7 @@ export function ProductsPage() {
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
               >
                 <Archive className="h-3.5 w-3.5 text-slate-500" />
-                Archive
+                {t('products.archive')}
               </button>
               <button
                 type="button"
@@ -364,7 +382,7 @@ export function ProductsPage() {
                 className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 font-medium text-white hover:bg-rose-700"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -378,7 +396,7 @@ export function ProductsPage() {
                 <th className="w-10 px-4 py-3">
                   <input
                     type="checkbox"
-                    aria-label="Select all products"
+                    aria-label={t('products.selectAllAria')}
                     checked={
                       filteredProducts.length > 0 &&
                       filteredProducts.every((p) => selectedIds.includes(p.id))
@@ -387,20 +405,24 @@ export function ProductsPage() {
                     className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
                   />
                 </th>
-                <th className="px-3 py-3">Product</th>
-                <th className="px-3 py-3">Status</th>
-                <th className="px-3 py-3">Inventory</th>
-                <th className="px-3 py-3 text-right">Price</th>
-                <th className="hidden px-3 py-3 text-right md:table-cell">Margin</th>
-                <th className="hidden px-3 py-3 text-right lg:table-cell">Sold</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-3 py-3">{t('products.colProduct')}</th>
+                <th className="px-3 py-3">{t('common.status')}</th>
+                <th className="px-3 py-3">{t('products.colInventory')}</th>
+                <th className="px-3 py-3 text-right">{t('products.colPrice')}</th>
+                <th className="hidden px-3 py-3 text-right md:table-cell">
+                  {t('products.colMargin')}
+                </th>
+                <th className="hidden px-3 py-3 text-right lg:table-cell">
+                  {t('products.colSold')}
+                </th>
+                <th className="px-4 py-3 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-xs text-slate-500">
-                    No products match the selected filters.
+                    {t('products.empty')}
                   </td>
                 </tr>
               ) : (
@@ -409,6 +431,7 @@ export function ProductsPage() {
                   const isOos = prod.stock === 0;
                   const isLow = !isOos && prod.stock <= prod.lowStockThreshold;
                   const checked = selectedIds.includes(prod.id);
+                  const displayName = tc(prod.name);
 
                   return (
                     <tr
@@ -420,7 +443,7 @@ export function ProductsPage() {
                       <td className="px-4 py-3.5">
                         <input
                           type="checkbox"
-                          aria-label={`Select ${prod.name}`}
+                          aria-label={t('products.selectProductAria', { name: displayName })}
                           checked={checked}
                           onChange={() =>
                             setSelectedIds((prev) =>
@@ -436,9 +459,9 @@ export function ProductsPage() {
                         <div className="flex items-center gap-3">
                           <ProductSwatch color={prod.swatchColor} category={prod.category} />
                           <div className="min-w-0">
-                            <div className="truncate font-medium text-slate-900">{prod.name}</div>
+                            <div className="truncate font-medium text-slate-900">{displayName}</div>
                             <div className="text-[11px] text-slate-400 tabular-nums">
-                              {prod.sku} · {prod.category}
+                              {prod.sku} · {t(getCategoryKey(prod.category))}
                             </div>
                           </div>
                         </div>
@@ -448,11 +471,15 @@ export function ProductsPage() {
                       </td>
                       <td className="px-3 py-3.5 whitespace-nowrap tabular-nums">
                         {isOos ? (
-                          <Badge tone="rose">Out of stock</Badge>
+                          <Badge tone="rose">{t('common.outOfStock')}</Badge>
                         ) : isLow ? (
-                          <Badge tone="amber">{prod.stock} left (low)</Badge>
+                          <Badge tone="amber">
+                            {t('common.leftLowCount', { count: prod.stock })}
+                          </Badge>
                         ) : (
-                          <span className="text-slate-700">{prod.stock} in stock</span>
+                          <span className="text-slate-700">
+                            {t('common.inStockCount', { count: prod.stock })}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-3.5 text-right font-semibold text-slate-900 whitespace-nowrap tabular-nums">
@@ -469,11 +496,11 @@ export function ProductsPage() {
                           <button
                             type="button"
                             onClick={() => setStockTarget(prod)}
-                            title="Adjust stock"
+                            title={t('products.adjustStockTitle')}
                             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50"
                           >
                             <PackagePlus className="h-3.5 w-3.5" />
-                            Stock
+                            {t('products.adjustStockBtn')}
                           </button>
                           <button
                             type="button"
@@ -481,11 +508,11 @@ export function ProductsPage() {
                               setEditingProduct(prod);
                               setEditorOpen(true);
                             }}
-                            title="Edit product"
+                            title={t('products.editProductTitle')}
                             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                           >
                             <Edit3 className="h-3.5 w-3.5" />
-                            Edit
+                            {t('common.edit')}
                           </button>
                         </div>
                       </td>
@@ -521,6 +548,7 @@ function ProductEditorModal({
   onClose: () => void;
 }) {
   const { state, dispatch, pushToast } = useMerchant();
+  const { t, tc } = useI18n();
   const sym = getCurrencySymbol(state.settings.currency);
 
   const [name, setName] = useState('');
@@ -580,22 +608,22 @@ function ProductEditorModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError('Product name is required.');
+      setError(t('productModal.errName'));
       return;
     }
     if (!sku.trim()) {
-      setError('SKU code is required.');
+      setError(t('productModal.errSku'));
       return;
     }
     if (numericPrice <= 0) {
-      setError('Retail price must be greater than zero.');
+      setError(t('productModal.errPrice'));
       return;
     }
     const dup = state.products.find(
       (p) => p.sku.toLowerCase() === sku.trim().toLowerCase() && p.id !== product?.id
     );
     if (dup) {
-      setError(`SKU "${sku.trim()}" is already assigned to ${dup.name}.`);
+      setError(t('productModal.errDupSku', { sku: sku.trim(), name: tc(dup.name) }));
       return;
     }
 
@@ -617,10 +645,20 @@ function ProductEditorModal({
         type: 'UPDATE_PRODUCT',
         payload: { ...product, ...base },
       });
-      pushToast('Product updated', `${base.name} (${base.sku}) saved.`);
+      pushToast(
+        t('productModal.toastUpdatedTitle'),
+        t('productModal.toastUpdatedDesc', { name: base.name, sku: base.sku })
+      );
     } else {
       dispatch({ type: 'ADD_PRODUCT', payload: base });
-      pushToast('Product added to catalog', `${base.name} (${base.sku}) is now ${base.status}.`);
+      pushToast(
+        t('productModal.toastAddedTitle'),
+        t('productModal.toastAddedDesc', {
+          name: base.name,
+          sku: base.sku,
+          status: t(getProductStatusKey(base.status)),
+        })
+      );
     }
     onClose();
   };
@@ -629,8 +667,8 @@ function ProductEditorModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={product ? 'Edit Product' : 'Add New Product'}
-      subtitle="Configure merchandising details, unit economics, and reorder thresholds."
+      title={product ? t('productModal.editTitle') : t('productModal.addTitle')}
+      subtitle={t('productModal.subtitle')}
       maxWidth="lg"
       footer={
         <>
@@ -639,14 +677,14 @@ function ProductEditorModal({
             onClick={onClose}
             className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             form="product-editor-form"
             className="rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
           >
-            {product ? 'Save Changes' : 'Create Product'}
+            {product ? t('common.saveChanges') : t('productModal.createBtn')}
           </button>
         </>
       }
@@ -660,39 +698,43 @@ function ProductEditorModal({
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <div className="sm:col-span-2">
-            <label className="mb-1 block font-medium text-slate-700">Product Title</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('productModal.fieldTitle')}
+            </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Cashmere Ribbed Beanie — Oat"
+              placeholder={t('productModal.titlePlaceholder')}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
             />
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="font-medium text-slate-700">SKU</label>
+              <label className="font-medium text-slate-700">{t('productModal.fieldSku')}</label>
               <button
                 type="button"
                 onClick={generateSku}
                 className="inline-flex items-center gap-0.5 text-[11px] font-medium text-teal-700 hover:text-teal-800"
               >
                 <Sparkles className="h-3 w-3" />
-                Auto
+                {t('productModal.autoSku')}
               </button>
             </div>
             <input
               type="text"
               value={sku}
               onChange={(e) => setSku(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 uppercase text-slate-900 tabular-nums focus:border-teal-600 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 uppercase tabular-nums focus:border-teal-600 focus:outline-none"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Category</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('productModal.fieldCategory')}
+            </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as ProductCategory)}
@@ -700,21 +742,23 @@ function ProductEditorModal({
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {t(getCategoryKey(c))}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Listing Status</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('productModal.fieldStatus')}
+            </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as ProductStatus)}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
             >
-              <option value="active">Active (visible on storefront)</option>
-              <option value="draft">Draft (hidden)</option>
-              <option value="archived">Archived</option>
+              <option value="active">{t('productModal.statusActiveOpt')}</option>
+              <option value="draft">{t('productModal.statusDraftOpt')}</option>
+              <option value="archived">{t('productModal.statusArchivedOpt')}</option>
             </select>
           </div>
         </div>
@@ -722,7 +766,9 @@ function ProductEditorModal({
         {/* Pricing + Live Margin */}
         <div className="grid grid-cols-1 gap-3.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Retail Price ({sym})</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('productModal.fieldRetailPrice', { sym })}
+            </label>
             <input
               type="number"
               min="0"
@@ -733,7 +779,9 @@ function ProductEditorModal({
             />
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Unit Cost ({sym})</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('productModal.fieldUnitCost', { sym })}
+            </label>
             <input
               type="number"
               min="0"
@@ -744,7 +792,7 @@ function ProductEditorModal({
             />
           </div>
           <div className="flex flex-col justify-center rounded-lg border border-slate-200/80 bg-white px-3 py-2 tabular-nums">
-            <span className="text-[11px] text-slate-500">Gross Margin &amp; Profit</span>
+            <span className="text-[11px] text-slate-500">{t('productModal.marginLabel')}</span>
             <span
               className={`mt-0.5 text-sm font-semibold ${
                 marginPct >= 45
@@ -761,7 +809,9 @@ function ProductEditorModal({
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block font-medium text-slate-700">On-Hand Stock</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('productModal.fieldStock')}
+            </label>
             <input
               type="number"
               min="0"
@@ -771,7 +821,9 @@ function ProductEditorModal({
             />
           </div>
           <div>
-            <label className="mb-1 block font-medium text-slate-700">Low-Stock Alert Threshold</label>
+            <label className="mb-1 block font-medium text-slate-700">
+              {t('productModal.fieldThreshold')}
+            </label>
             <input
               type="number"
               min="1"
@@ -783,25 +835,29 @@ function ProductEditorModal({
         </div>
 
         <div>
-          <label className="mb-1 block font-medium text-slate-700">Description</label>
+          <label className="mb-1 block font-medium text-slate-700">
+            {t('productModal.fieldDesc')}
+          </label>
           <textarea
             rows={2}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Materials, dimensions, care notes..."
+            placeholder={t('productModal.descPlaceholder')}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
           />
         </div>
 
         <div>
-          <label className="mb-1.5 block font-medium text-slate-700">Catalog Swatch Accent</label>
+          <label className="mb-1.5 block font-medium text-slate-700">
+            {t('productModal.fieldSwatch')}
+          </label>
           <div className="flex items-center gap-2">
             {SWATCH_COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setSwatchColor(c)}
-                aria-label={`Select color ${c}`}
+                aria-label={t('productModal.selectColorAria', { color: c })}
                 className={`h-6 w-6 rounded-full transition-transform ${
                   swatchColor === c ? 'scale-110 ring-2 ring-slate-900 ring-offset-2' : ''
                 }`}
@@ -815,6 +871,13 @@ function ProductEditorModal({
   );
 }
 
+const REASON_KEYS = [
+  'stockModal.reasonRestock',
+  'stockModal.reasonCycle',
+  'stockModal.reasonReturn',
+  'stockModal.reasonDamaged',
+] as const;
+
 function StockAdjustModal({
   product,
   onClose,
@@ -823,13 +886,14 @@ function StockAdjustModal({
   onClose: () => void;
 }) {
   const { dispatch, pushToast } = useMerchant();
+  const { t, tc } = useI18n();
   const [delta, setDelta] = useState('25');
-  const [reason, setReason] = useState('Purchase order restock received');
+  const [reasonKey, setReasonKey] = useState<(typeof REASON_KEYS)[number]>(REASON_KEYS[0]);
 
   useEffect(() => {
     if (product) {
       setDelta('25');
-      setReason('Purchase order restock received');
+      setReasonKey(REASON_KEYS[0]);
     }
   }, [product]);
 
@@ -845,8 +909,12 @@ function StockAdjustModal({
       payload: { productId: product.id, newStock: projected },
     });
     pushToast(
-      `Inventory updated for ${product.sku}`,
-      `${product.stock} → ${projected} units (${reason})`
+      t('stockModal.toastTitle', { sku: product.sku }),
+      t('stockModal.toastDesc', {
+        from: product.stock,
+        to: projected,
+        reason: t(reasonKey),
+      })
     );
     onClose();
   };
@@ -855,8 +923,8 @@ function StockAdjustModal({
     <Modal
       open={Boolean(product)}
       onClose={onClose}
-      title="Adjust Inventory"
-      subtitle={`${product.name} (${product.sku})`}
+      title={t('stockModal.title')}
+      subtitle={`${tc(product.name)} (${product.sku})`}
       maxWidth="sm"
       footer={
         <>
@@ -865,14 +933,14 @@ function StockAdjustModal({
             onClick={onClose}
             className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             form="stock-adjust-form"
             className="rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
           >
-            Update to {projected} Units
+            {t('stockModal.submit', { count: projected })}
           </button>
         </>
       }
@@ -880,19 +948,19 @@ function StockAdjustModal({
       <form id="stock-adjust-form" onSubmit={handleSave} className="space-y-4 text-xs">
         <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3 tabular-nums">
           <div>
-            <div className="text-[11px] text-slate-500">Current</div>
+            <div className="text-[11px] text-slate-500">{t('stockModal.current')}</div>
             <div className="text-lg font-semibold text-slate-900">{product.stock}</div>
           </div>
           <div className="text-slate-400">→</div>
           <div className="text-right">
-            <div className="text-[11px] text-slate-500">New On-Hand</div>
+            <div className="text-[11px] text-slate-500">{t('stockModal.newOnHand')}</div>
             <div className="text-lg font-semibold text-teal-700">{projected}</div>
           </div>
         </div>
 
         <div>
           <label className="mb-1 block font-medium text-slate-700">
-            Quantity Adjustment (use negative to deduct)
+            {t('stockModal.deltaLabel')}
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -915,16 +983,19 @@ function StockAdjustModal({
         </div>
 
         <div>
-          <label className="mb-1 block font-medium text-slate-700">Adjustment Reason</label>
+          <label className="mb-1 block font-medium text-slate-700">
+            {t('stockModal.reasonLabel')}
+          </label>
           <select
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            value={reasonKey}
+            onChange={(e) => setReasonKey(e.target.value as (typeof REASON_KEYS)[number])}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 focus:border-teal-600 focus:outline-none"
           >
-            <option>Purchase order restock received</option>
-            <option>Warehouse cycle count correction</option>
-            <option>Customer return restocked</option>
-            <option>Damaged / quality hold write-off</option>
+            {REASON_KEYS.map((rk) => (
+              <option key={rk} value={rk}>
+                {t(rk)}
+              </option>
+            ))}
           </select>
         </div>
       </form>

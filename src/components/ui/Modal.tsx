@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface ModalProps {
   open: boolean;
@@ -27,6 +28,7 @@ export function Modal({
   children,
   footer,
 }: ModalProps) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -67,7 +69,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={t('app.closeModal')}
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-4 w-4" />

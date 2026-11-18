@@ -11,6 +11,7 @@ import { OverviewPage } from './pages/OverviewPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { PromotionsPage } from './pages/PromotionsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { I18nProvider, type Locale } from './i18n/I18nContext';
 import { MerchantProvider, useMerchant } from './store/MerchantContext';
 
 function MerchantConsoleShell() {
@@ -62,10 +63,12 @@ function MerchantConsoleShell() {
   );
 }
 
-export default function App() {
+export default function App({ initialLocale }: { initialLocale?: Locale } = {}) {
   return (
-    <MerchantProvider>
-      <MerchantConsoleShell />
-    </MerchantProvider>
+    <I18nProvider initialLocale={initialLocale}>
+      <MerchantProvider>
+        <MerchantConsoleShell />
+      </MerchantProvider>
+    </I18nProvider>
   );
 }

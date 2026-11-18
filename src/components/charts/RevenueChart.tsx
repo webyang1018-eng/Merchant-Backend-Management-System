@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '../../i18n/I18nContext';
 import type { CurrencyCode, DailyMetricPoint } from '../../types/merchant';
 import { formatCurrency, formatNumber } from '../../utils/format';
 
@@ -10,6 +11,7 @@ interface RevenueChartProps {
 }
 
 export function RevenueChart({ points, currency }: RevenueChartProps) {
+  const { locale, t } = useI18n();
   const [mode, setMode] = useState<ChartMode>('revenue');
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -97,10 +99,8 @@ export function RevenueChart({ points, currency }: RevenueChartProps) {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Revenue &amp; Order Performance</h2>
-          <p className="text-xs text-slate-500">
-            Gross merchandise volume and completed checkouts across channels
-          </p>
+          <h2 className="text-sm font-semibold text-slate-900">{t('chart.title')}</h2>
+          <p className="text-xs text-slate-500">{t('chart.subtitle')}</p>
         </div>
         <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium">
           <button
@@ -112,7 +112,7 @@ export function RevenueChart({ points, currency }: RevenueChartProps) {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Revenue
+            {t('chart.modeRevenue')}
           </button>
           <button
             type="button"
@@ -123,7 +123,7 @@ export function RevenueChart({ points, currency }: RevenueChartProps) {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Orders
+            {t('chart.modeOrders')}
           </button>
         </div>
       </div>
@@ -168,8 +168,8 @@ export function RevenueChart({ points, currency }: RevenueChartProps) {
             const formatted =
               mode === 'revenue'
                 ? tick === 0
-                  ? formatCurrency(0, currency, { compact: true }).replace('.00', '')
-                  : formatCurrency(tick, currency, { compact: true })
+                  ? formatCurrency(0, currency, { compact: true, locale }).replace('.00', '')
+                  : formatCurrency(tick, currency, { compact: true, locale })
                 : formatNumber(Math.round(tick));
             return (
               <g key={idx}>
@@ -282,13 +282,13 @@ export function RevenueChart({ points, currency }: RevenueChartProps) {
             <div className="mb-1.5 text-xs font-semibold text-slate-800">{active.point.label}</div>
             <div className="space-y-1 text-xs tabular-nums">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Gross sales</span>
+                <span className="text-slate-500">{t('chart.tooltipGross')}</span>
                 <span className="font-semibold text-slate-900">
                   {formatCurrency(active.point.revenue, currency)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Net revenue</span>
+                <span className="text-slate-500">{t('chart.tooltipNet')}</span>
                 <span className="font-medium text-emerald-700">
                   {formatCurrency(
                     Math.max(0, active.point.revenue - active.point.refunds),
@@ -297,7 +297,7 @@ export function RevenueChart({ points, currency }: RevenueChartProps) {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Orders</span>
+                <span className="text-slate-500">{t('chart.tooltipOrders')}</span>
                 <span className="font-medium text-slate-800">
                   {formatNumber(active.point.orders)}
                 </span>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
+  Languages,
   Package,
   Plus,
   Search,
@@ -10,6 +11,8 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
+import { getCategoryKey } from '../../i18n/translations';
 import { useMerchant } from '../../store/MerchantContext';
 import { formatCurrency } from '../../utils/format';
 
@@ -26,6 +29,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     setInspectCustomerId,
     setQuickAction,
   } = useMerchant();
+  const { toggleLocale, t, tc } = useI18n();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -63,8 +67,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         (p) =>
           !q ||
           p.name.toLowerCase().includes(q) ||
+          tc(p.name).toLowerCase().includes(q) ||
           p.sku.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q)
+          p.category.toLowerCase().includes(q) ||
+          t(getCategoryKey(p.category)).toLowerCase().includes(q)
       )
       .slice(0, q ? 5 : 3);
 
@@ -74,19 +80,20 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             (c) =>
               c.name.toLowerCase().includes(q) ||
               c.email.toLowerCase().includes(q) ||
-              c.city.toLowerCase().includes(q)
+              c.city.toLowerCase().includes(q) ||
+              tc(c.city).toLowerCase().includes(q)
           )
           .slice(0, 4)
       : [];
 
     return { orders, products, customers };
-  }, [state.orders, state.products, state.customers, q]);
+  }, [state.orders, state.products, state.customers, q, t, tc]);
 
   if (!open) return null;
 
   const quickActions = [
     {
-      label: 'Create manual order',
+      label: t('cmd.actionCreateOrder'),
       icon: Plus,
       run: () => {
         setActiveSection('orders');
@@ -95,7 +102,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       },
     },
     {
-      label: 'Add new product',
+      label: t('cmd.actionAddProduct'),
       icon: Package,
       run: () => {
         setActiveSection('products');
@@ -104,7 +111,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       },
     },
     {
-      label: 'Create discount code',
+      label: t('cmd.actionCreateCoupon'),
       icon: Tag,
       run: () => {
         setActiveSection('promotions');
@@ -113,11 +120,19 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       },
     },
     {
-      label: 'Request balance payout',
+      label: t('cmd.actionRequestPayout'),
       icon: Wallet,
       run: () => {
         setActiveSection('finance');
         setQuickAction('request_payout');
+        onClose();
+      },
+    },
+    {
+      label: t('cmd.actionSwitchLanguage'),
+      icon: Languages,
+      run: () => {
+        toggleLocale();
         onClose();
       },
     },
@@ -130,7 +145,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     results.customers.length === 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-[1px]" onClick={onClose} />
       <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center gap-3 border-b border-slate-200/80 px-4 py-3">
@@ -140,13 +159,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search orders (#HL-1048), products, SKUs, customers, or actions..."
+            placeholder={t('cmd.placeholder')}
             className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close search"
+            aria-label={t('cmd.closeSearch')}
             className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-4 w-4" />
@@ -156,14 +175,14 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         <div className="max-h-[62vh] space-y-4 overflow-y-auto p-3">
           {isEmpty && (
             <div className="py-10 text-center text-sm text-slate-500">
-              No results matching &ldquo;{query}&rdquo;
+              {t('cmd.noResults', { query })}
             </div>
           )}
 
           {quickActions.length > 0 && (
             <div>
               <div className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-                Quick Actions
+                {t('cmd.quickActions')}
               </div>
               <div className="space-y-0.5">
                 {quickActions.map((act) => {
@@ -190,7 +209,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           {results.orders.length > 0 && (
             <div>
               <div className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-                Orders
+                {t('cmd.groupOrders')}
               </div>
               <div className="space-y-0.5">
                 {results.orders.map((order) => (
@@ -223,7 +242,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           {results.products.length > 0 && (
             <div>
               <div className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-                Products
+                {t('cmd.groupProducts')}
               </div>
               <div className="space-y-0.5">
                 {results.products.map((prod) => (
@@ -238,11 +257,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
                       <Package className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      <span className="truncate font-medium text-slate-900">{prod.name}</span>
+                      <span className="truncate font-medium text-slate-900">{tc(prod.name)}</span>
                       <span className="shrink-0 text-slate-400 tabular-nums">{prod.sku}</span>
                     </span>
                     <span className="ml-2 shrink-0 text-slate-600 tabular-nums">
-                      {prod.stock} in stock
+                      {t('common.inStockCount', { count: prod.stock })}
                     </span>
                   </button>
                 ))}
@@ -253,7 +272,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           {results.customers.length > 0 && (
             <div>
               <div className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-                Customers
+                {t('cmd.groupCustomers')}
               </div>
               <div className="space-y-0.5">
                 {results.customers.map((cust) => (
@@ -272,7 +291,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                       <span className="font-medium text-slate-900">{cust.name}</span>
                       <span className="text-slate-400">{cust.email}</span>
                     </span>
-                    <span className="text-slate-500">{cust.city}</span>
+                    <span className="text-slate-500">{tc(cust.city)}</span>
                   </button>
                 ))}
               </div>

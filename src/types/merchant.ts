@@ -7,7 +7,7 @@ export type NavSection =
   | 'finance'
   | 'settings';
 
-export type CurrencyCode = 'USD' | 'SGD' | 'EUR' | 'GBP';
+export type CurrencyCode = 'USD' | 'CNY' | 'SGD' | 'EUR' | 'GBP';
 
 export type ProductStatus = 'active' | 'draft' | 'archived';
 

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Building2, Download, Zap } from 'lucide-react';
-import { Badge, PayoutStatusBadge } from '../components/ui/Badge';
+import { LedgerTypeBadge, PayoutStatusBadge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
+import { useI18n } from '../i18n/I18nContext';
+import { getLedgerTypeKey, getPayoutStatusKey } from '../i18n/translations';
 import { useMerchant } from '../store/MerchantContext';
+import type { CurrencyCode } from '../types/merchant';
 import {
   downloadCsv,
   formatCurrency,
@@ -12,6 +15,7 @@ import {
 
 export function FinancePage() {
   const { state, dispatch, quickAction, setQuickAction, pushToast } = useMerchant();
+  const { locale, t, tc } = useI18n();
   const currency = state.settings.currency;
 
   const [tab, setTab] = useState<'payouts' | 'ledger'>('payouts');
@@ -47,45 +51,58 @@ export function FinancePage() {
     if (tab === 'payouts') {
       downloadCsv(
         'payout-history-2026-11-18.csv',
-        ['Reference', 'Initiated', 'Arrival Date', 'Destination', 'Method', 'Gross', 'Fee', 'Net', 'Status'],
+        [
+          t('finance.colRef'),
+          t('finance.colInitiated'),
+          t('common.date'),
+          t('finance.colDestMethod'),
+          t('finance.colGross'),
+          t('finance.colFee'),
+          t('finance.colNetAmount'),
+          t('common.status'),
+        ],
         state.payouts.map((p) => [
           p.reference,
           p.initiatedAt,
           p.arrivalDate,
-          p.destination,
-          p.method,
+          `${p.destination} (${t(`payoutMethod.${p.method}`)})`,
           p.grossAmount.toFixed(2),
           p.fee.toFixed(2),
           p.netAmount.toFixed(2),
-          p.status,
+          t(getPayoutStatusKey(p.status)),
         ])
       );
     } else {
       downloadCsv(
         'transaction-ledger-2026-11-18.csv',
-        ['Timestamp', 'Type', 'Reference', 'Description', 'Gross', 'Fee', 'Net', 'Status'],
+        [
+          t('common.date'),
+          t('finance.colType'),
+          t('finance.colRef'),
+          t('finance.colRefDesc'),
+          t('finance.colGross'),
+          t('finance.colFee'),
+          t('finance.colNetImpact'),
+        ],
         visibleLedger.map((e) => [
           e.createdAt,
-          e.type,
+          t(getLedgerTypeKey(e.type)),
           e.reference,
-          e.description,
+          tc(e.description),
           e.gross.toFixed(2),
           e.fee.toFixed(2),
           e.net.toFixed(2),
-          e.status,
         ])
       );
     }
-    pushToast('Financial statement exported', 'CSV downloaded to your device.', 'info');
+    pushToast(t('finance.toastExportTitle'), t('finance.toastExportDesc'), 'info');
   };
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">
-          Monitor merchant balances, settlement schedules, processing fees, and bank payouts.
-        </p>
+        <p className="text-sm text-slate-600">{t('finance.subtitle')}</p>
         <div className="flex items-center gap-2.5">
           <button
             type="button"
@@ -93,7 +110,7 @@ export function FinancePage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50"
           >
             <Download className="h-3.5 w-3.5" />
-            Export Statement
+            {t('finance.exportStatement')}
           </button>
           <button
             type="button"
@@ -102,7 +119,7 @@ export function FinancePage() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-teal-800 disabled:opacity-50"
           >
             <ArrowUpRight className="h-3.5 w-3.5" />
-            Request Payout
+            {t('finance.requestPayout')}
           </button>
         </div>
       </div>
@@ -110,7 +127,7 @@ export function FinancePage() {
       {/* Balance Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
-          <div className="text-xs font-medium text-slate-500">Available to Pay Out</div>
+          <div className="text-xs font-medium text-slate-500">{t('finance.kpiAvailable')}</div>
           <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
             {formatCurrency(state.availableBalance, currency)}
           </div>
@@ -121,32 +138,34 @@ export function FinancePage() {
         </div>
 
         <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
-          <div className="text-xs font-medium text-slate-500">Pending Settlement</div>
+          <div className="text-xs font-medium text-slate-500">{t('finance.kpiPending')}</div>
           <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">
             {formatCurrency(metrics.pendingSettlement, currency)}
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-500">
-            Clears automatically on order delivery
-          </p>
+          <p className="mt-1.5 text-[11px] text-slate-500">{t('finance.kpiPendingHint')}</p>
         </div>
 
         <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
-          <div className="text-xs font-medium text-slate-500">Payouts In Transit</div>
+          <div className="text-xs font-medium text-slate-500">{t('finance.kpiInTransit')}</div>
           <div className="mt-2 text-2xl font-semibold tracking-tight text-blue-700 tabular-nums">
             {formatCurrency(metrics.inTransitTotal, currency)}
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-500 capitalize">
-            Auto-payout cadence: {state.settings.autoPayoutSchedule}
+          <p className="mt-1.5 text-[11px] text-slate-500">
+            {t('finance.kpiAutoCadence', {
+              schedule: t(`schedule.${state.settings.autoPayoutSchedule}`),
+            })}
           </p>
         </div>
 
         <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs">
-          <div className="text-xs font-medium text-slate-500">Recent Settled Payouts</div>
+          <div className="text-xs font-medium text-slate-500">{t('finance.kpiPaidOut')}</div>
           <div className="mt-2 text-2xl font-semibold tracking-tight text-emerald-700 tabular-nums">
             {formatCurrency(metrics.paidOutTotal, currency)}
           </div>
           <p className="mt-1.5 text-[11px] text-slate-500 tabular-nums">
-            Across {state.payouts.filter((p) => p.status === 'paid').length} completed transfers
+            {t('finance.kpiPaidCount', {
+              count: state.payouts.filter((p) => p.status === 'paid').length,
+            })}
           </p>
         </div>
       </div>
@@ -164,7 +183,7 @@ export function FinancePage() {
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              Bank Payouts ({state.payouts.length})
+              {t('finance.tabPayouts', { count: state.payouts.length })}
             </button>
             <button
               type="button"
@@ -175,22 +194,22 @@ export function FinancePage() {
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              Transaction Ledger ({state.ledger.length})
+              {t('finance.tabLedger', { count: state.ledger.length })}
             </button>
           </div>
 
           {tab === 'ledger' && (
             <div className="pb-2">
               <select
-                aria-label="Filter ledger entry type"
+                aria-label={t('finance.filterLedgerAria')}
                 value={ledgerType}
                 onChange={(e) => setLedgerType(e.target.value as typeof ledgerType)}
                 className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 focus:border-teal-600 focus:outline-none"
               >
-                <option value="all">All entry types</option>
-                <option value="charge">Charges</option>
-                <option value="refund">Refunds</option>
-                <option value="payout">Payouts</option>
+                <option value="all">{t('finance.ledgerAll')}</option>
+                <option value="charge">{t('finance.ledgerCharges')}</option>
+                <option value="refund">{t('finance.ledgerRefunds')}</option>
+                <option value="payout">{t('finance.ledgerPayouts')}</option>
               </select>
             </div>
           )}
@@ -201,12 +220,14 @@ export function FinancePage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-                  <th className="px-5 py-3">Reference</th>
-                  <th className="px-4 py-3">Initiated</th>
-                  <th className="px-4 py-3">Destination &amp; Method</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="hidden px-4 py-3 text-right sm:table-cell">Fee</th>
-                  <th className="px-5 py-3 text-right">Net Amount</th>
+                  <th className="px-5 py-3">{t('finance.colRef')}</th>
+                  <th className="px-4 py-3">{t('finance.colInitiated')}</th>
+                  <th className="px-4 py-3">{t('finance.colDestMethod')}</th>
+                  <th className="px-4 py-3">{t('common.status')}</th>
+                  <th className="hidden px-4 py-3 text-right sm:table-cell">
+                    {t('finance.colFee')}
+                  </th>
+                  <th className="px-5 py-3 text-right">{t('finance.colNetAmount')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -216,18 +237,24 @@ export function FinancePage() {
                       {po.reference}
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap tabular-nums">
-                      <div className="text-slate-700">{formatDate(po.initiatedAt)}</div>
-                      <div className="text-[11px] text-slate-400">Est. arrival {po.arrivalDate}</div>
+                      <div className="text-slate-700">
+                        {formatDate(po.initiatedAt, false, locale)}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {t('finance.estArrival', { date: po.arrivalDate })}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="text-slate-800">{po.destination}</div>
-                      <div className="text-[11px] text-slate-400">{po.method}</div>
+                      <div className="text-[11px] text-slate-400">
+                        {t(`payoutMethod.${po.method}`)}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <PayoutStatusBadge status={po.status} />
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-slate-500 whitespace-nowrap tabular-nums sm:table-cell">
-                      {po.fee === 0 ? 'Free' : formatCurrency(po.fee, currency)}
+                      {po.fee === 0 ? t('common.free') : formatCurrency(po.fee, currency)}
                     </td>
                     <td className="px-5 py-3.5 text-right font-semibold text-slate-900 whitespace-nowrap tabular-nums">
                       {formatCurrency(po.netAmount, currency)}
@@ -242,38 +269,32 @@ export function FinancePage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Reference &amp; Description</th>
-                  <th className="hidden px-4 py-3 text-right sm:table-cell">Gross</th>
-                  <th className="hidden px-4 py-3 text-right md:table-cell">Fee</th>
-                  <th className="px-5 py-3 text-right">Net Impact</th>
+                  <th className="px-5 py-3">{t('common.date')}</th>
+                  <th className="px-4 py-3">{t('finance.colType')}</th>
+                  <th className="px-4 py-3">{t('finance.colRefDesc')}</th>
+                  <th className="hidden px-4 py-3 text-right sm:table-cell">
+                    {t('finance.colGross')}
+                  </th>
+                  <th className="hidden px-4 py-3 text-right md:table-cell">
+                    {t('finance.colFee')}
+                  </th>
+                  <th className="px-5 py-3 text-right">{t('finance.colNetImpact')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {visibleLedger.map((entry) => (
                   <tr key={entry.id} className="hover:bg-slate-50/80">
                     <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap tabular-nums">
-                      {formatDate(entry.createdAt, true)}
+                      {formatDate(entry.createdAt, true, locale)}
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <Badge
-                        tone={
-                          entry.type === 'charge'
-                            ? 'emerald'
-                            : entry.type === 'refund'
-                              ? 'rose'
-                              : 'blue'
-                        }
-                      >
-                        {entry.type.charAt(0).toUpperCase() + entry.type.slice(1)}
-                      </Badge>
+                      <LedgerTypeBadge type={entry.type} />
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="font-medium text-slate-900 tabular-nums">
                         {entry.reference}
                       </div>
-                      <div className="text-[11px] text-slate-500">{entry.description}</div>
+                      <div className="text-[11px] text-slate-500">{tc(entry.description)}</div>
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-slate-600 whitespace-nowrap tabular-nums sm:table-cell">
                       {formatCurrency(entry.gross, currency, { signed: true })}
@@ -306,8 +327,11 @@ export function FinancePage() {
         onSubmit={(amount, method) => {
           dispatch({ type: 'REQUEST_PAYOUT', payload: { amount, method } });
           pushToast(
-            'Payout initiated',
-            `${formatCurrency(amount, currency)} sent via ${method}.`
+            t('finance.toastPayoutTitle'),
+            t('finance.toastPayoutDesc', {
+              amount: formatCurrency(amount, currency),
+              method: t(`payoutMethod.${method}`),
+            })
           );
           setPayoutOpen(false);
         }}
@@ -327,10 +351,11 @@ function RequestPayoutModal({
   open: boolean;
   available: number;
   bank: string;
-  currency: 'USD' | 'SGD' | 'EUR' | 'GBP';
+  currency: CurrencyCode;
   onClose: () => void;
   onSubmit: (amount: number, method: 'Standard ACH' | 'Instant Transfer') => void;
 }) {
+  const { t } = useI18n();
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<'Standard ACH' | 'Instant Transfer'>('Standard ACH');
 
@@ -350,8 +375,8 @@ function RequestPayoutModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Withdraw Available Balance"
-      subtitle={`Settle funds to ${bank}`}
+      title={t('payoutModal.title')}
+      subtitle={t('payoutModal.subtitle', { bank })}
       maxWidth="sm"
       footer={
         <>
@@ -360,7 +385,7 @@ function RequestPayoutModal({
             onClick={onClose}
             className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -368,7 +393,7 @@ function RequestPayoutModal({
             onClick={() => onSubmit(numAmount, method)}
             className="rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
           >
-            Withdraw {formatCurrency(net, currency)}
+            {t('payoutModal.submit', { amount: formatCurrency(net, currency) })}
           </button>
         </>
       }
@@ -377,14 +402,14 @@ function RequestPayoutModal({
         <div>
           <div className="mb-1 flex items-center justify-between">
             <label className="font-medium text-slate-700">
-              Payout Amount ({getCurrencySymbol(currency)})
+              {t('payoutModal.amountLabel', { sym: getCurrencySymbol(currency) })}
             </label>
             <button
               type="button"
               onClick={() => setAmount(available.toFixed(2))}
-              className="text-[11px] font-medium text-teal-700 hover:underline tabular-nums"
+              className="text-[11px] font-medium text-teal-700 tabular-nums hover:underline"
             >
-              Max: {formatCurrency(available, currency)}
+              {t('payoutModal.maxBtn', { amount: formatCurrency(available, currency) })}
             </button>
           </div>
           <input
@@ -397,14 +422,12 @@ function RequestPayoutModal({
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 tabular-nums focus:border-teal-600 focus:outline-none"
           />
           {numAmount > available && (
-            <p className="mt-1 text-[11px] text-rose-600">
-              Amount exceeds available merchant balance.
-            </p>
+            <p className="mt-1 text-[11px] text-rose-600">{t('payoutModal.errExceed')}</p>
           )}
         </div>
 
         <div className="space-y-2">
-          <span className="block font-medium text-slate-700">Transfer Speed</span>
+          <span className="block font-medium text-slate-700">{t('payoutModal.speedLabel')}</span>
           <button
             type="button"
             onClick={() => setMethod('Standard ACH')}
@@ -415,10 +438,10 @@ function RequestPayoutModal({
             }`}
           >
             <div>
-              <div className="font-semibold text-slate-900">Standard Bank Transfer</div>
-              <div className="text-[11px] text-slate-500">Arrives in 1–2 business days</div>
+              <div className="font-semibold text-slate-900">{t('payoutModal.stdTitle')}</div>
+              <div className="text-[11px] text-slate-500">{t('payoutModal.stdDesc')}</div>
             </div>
-            <span className="font-semibold text-emerald-700">Free</span>
+            <span className="font-semibold text-emerald-700">{t('common.free')}</span>
           </button>
 
           <button
@@ -433,21 +456,23 @@ function RequestPayoutModal({
             <div>
               <div className="flex items-center gap-1 font-semibold text-slate-900">
                 <Zap className="h-3.5 w-3.5 text-amber-500" />
-                Instant Settlement
+                {t('payoutModal.instTitle')}
               </div>
-              <div className="text-[11px] text-slate-500">Arrives within 30 minutes</div>
+              <div className="text-[11px] text-slate-500">{t('payoutModal.instDesc')}</div>
             </div>
-            <span className="font-medium text-slate-700 tabular-nums">1.0% fee</span>
+            <span className="font-medium text-slate-700 tabular-nums">
+              {t('payoutModal.instFee')}
+            </span>
           </button>
         </div>
 
         <div className="space-y-1 rounded-xl border border-slate-200/80 bg-slate-50 p-3 tabular-nums">
           <div className="flex justify-between text-slate-600">
-            <span>Transfer fee</span>
-            <span>{fee === 0 ? 'Free' : formatCurrency(fee, currency)}</span>
+            <span>{t('payoutModal.transferFee')}</span>
+            <span>{fee === 0 ? t('common.free') : formatCurrency(fee, currency)}</span>
           </div>
           <div className="flex justify-between border-t border-slate-200 pt-1.5 font-semibold text-slate-900">
-            <span>Net bank deposit</span>
+            <span>{t('payoutModal.netDeposit')}</span>
             <span>{formatCurrency(net, currency)}</span>
           </div>
         </div>
