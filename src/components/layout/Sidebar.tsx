@@ -12,6 +12,7 @@ import {
 import { useI18n } from '../../i18n/I18nContext';
 import { useMerchant } from '../../store/MerchantContext';
 import type { NavSection } from '../../types/merchant';
+import { deriveOperationalCounts } from '../../utils/merchantSignals';
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -22,13 +23,8 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const { state, activeSection, setActiveSection } = useMerchant();
   const { t } = useI18n();
 
-  const actionableOrders = state.orders.filter(
-    (o) => o.status === 'to_fulfill' || o.status === 'refund_requested'
-  ).length;
-
-  const lowStockCount = state.products.filter(
-    (p) => p.status === 'active' && p.stock <= p.lowStockThreshold
-  ).length;
+  const { actionableOrderCount: actionableOrders, lowStockCount } =
+    deriveOperationalCounts(state);
 
   const primaryItems: {
     id: NavSection;

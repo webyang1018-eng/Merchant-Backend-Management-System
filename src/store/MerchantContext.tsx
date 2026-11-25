@@ -40,6 +40,13 @@ interface MerchantContextValue {
   toasts: ToastMessage[];
   pushToast: (title: string, description?: string, tone?: ToastMessage['tone']) => void;
   dismissToast: (id: string) => void;
+  latestFeedback: {
+    id: string;
+    kind: 'success' | 'info' | 'warning' | 'error';
+    title: string;
+    description?: string;
+    timestamp: number;
+  } | null;
 }
 
 const MerchantContext = createContext<MerchantContextValue | null>(null);
@@ -53,6 +60,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     'new_product' | 'new_order' | 'new_promo' | 'request_payout' | null
   >(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [latestFeedback, setLatestFeedback] = useState<MerchantContextValue['latestFeedback']>(null);
 
   useEffect(() => {
     try {
@@ -75,9 +83,19 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     (title: string, description?: string, tone: ToastMessage['tone'] = 'success') => {
       const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       setToasts((prev) => [...prev.slice(-3), { id, title, description, tone }]);
+      setLatestFeedback({
+        id,
+        kind: tone ?? 'success',
+        title,
+        description,
+        timestamp: Date.now(),
+      });
       window.setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 3800);
+      window.setTimeout(() => {
+        setLatestFeedback((cur) => (cur?.id === id ? null : cur));
+      }, 4200);
     },
     []
   );
@@ -109,6 +127,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       toasts,
       pushToast,
       dismissToast,
+      latestFeedback,
     }),
     [
       state,
@@ -121,6 +140,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       toasts,
       pushToast,
       dismissToast,
+      latestFeedback,
     ]
   );
 
