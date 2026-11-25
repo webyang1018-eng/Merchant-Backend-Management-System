@@ -13,11 +13,14 @@ import { PromotionsPage } from './pages/PromotionsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { I18nProvider, type Locale } from './i18n/I18nContext';
 import { MerchantProvider, useMerchant } from './store/MerchantContext';
+import { useMainWindowPetSync } from './sync/useMainWindowPetSync';
 
 function MerchantConsoleShell() {
   const { activeSection } = useMerchant();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  useMainWindowPetSync();
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

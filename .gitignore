@@ -28,3 +28,7 @@ pnpm-debug.log*
 # Test & coverage
 coverage
 .playwright-cli
+
+# Tauri Rust build artifacts
+src-tauri/target
+src-tauri/gen

@@ -14,12 +14,19 @@ import {
 import { useI18n } from '../../i18n/I18nContext';
 import { getSectionTitleKey } from '../../i18n/translations';
 import { useMerchant } from '../../store/MerchantContext';
-import { formatCurrency } from '../../utils/format';
+import { deriveOperationalAlerts, type PetAlertKind } from '../../utils/merchantSignals';
 
 interface TopBarProps {
   onOpenMobileMenu: () => void;
   onOpenSearch: () => void;
 }
+
+const ALERT_META: Record<PetAlertKind, { icon: typeof ShoppingBag; tone: string }> = {
+  unfulfilled: { icon: ShoppingBag, tone: 'text-blue-600 bg-blue-50' },
+  refund: { icon: RotateCcw, tone: 'text-rose-600 bg-rose-50' },
+  low_stock: { icon: AlertTriangle, tone: 'text-amber-600 bg-amber-50' },
+  payout: { icon: Wallet, tone: 'text-emerald-600 bg-emerald-50' },
+};
 
 export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
   const {
@@ -30,7 +37,7 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
     navigateWithOrderFilter,
     navigateWithProductFilter,
   } = useMerchant();
-  const { locale, setLocale, t, tc } = useI18n();
+  const { locale, setLocale, t } = useI18n();
   const [alertsOpen, setAlertsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
 
@@ -45,108 +52,12 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [alertsOpen]);
 
-  const alerts = useMemo(() => {
-    const items: {
-      id: string;
-      title: string;
-      detail: string;
-      icon: typeof ShoppingBag;
-      tone: string;
-      onClick: () => void;
-    }[] = [];
+  const alerts = useMemo(
+    () => deriveOperationalAlerts(state, locale),
+    [state, locale]
+  );
 
-    const unfulfilled = state.orders.filter((o) => o.status === 'to_fulfill');
-    if (unfulfilled.length > 0 && state.settings.notifications.newOrders) {
-      items.push({
-        id: `alert-unfulfilled-${unfulfilled.length}`,
-        title: t(
-          unfulfilled.length === 1
-            ? 'topbar.alertUnfulfilledTitleOne'
-            : 'topbar.alertUnfulfilledTitleOther',
-          { count: unfulfilled.length }
-        ),
-        detail: t('topbar.alertUnfulfilledDetail', {
-          orderNumber: unfulfilled[0].orderNumber,
-          customer: unfulfilled[0].customerName,
-        }),
-        icon: ShoppingBag,
-        tone: 'text-blue-600 bg-blue-50',
-        onClick: () => navigateWithOrderFilter('to_fulfill'),
-      });
-    }
-
-    const refunds = state.orders.filter((o) => o.status === 'refund_requested');
-    if (refunds.length > 0 && state.settings.notifications.refundRequests) {
-      items.push({
-        id: `alert-refunds-${refunds.length}`,
-        title: t('topbar.alertRefundTitle', { count: refunds.length }),
-        detail: `${refunds[0].orderNumber} · ${formatCurrency(refunds[0].total, state.settings.currency)}`,
-        icon: RotateCcw,
-        tone: 'text-rose-600 bg-rose-50',
-        onClick: () => navigateWithOrderFilter('refund_cancelled'),
-      });
-    }
-
-    const lowStock = state.products.filter(
-      (p) => p.status === 'active' && p.stock <= p.lowStockThreshold
-    );
-    if (lowStock.length > 0 && state.settings.notifications.lowStockAlerts) {
-      const oos = lowStock.filter((p) => p.stock === 0).length;
-      items.push({
-        id: `alert-lowstock-${lowStock.length}-${oos}`,
-        title: t(
-          lowStock.length === 1
-            ? 'topbar.alertLowStockTitleOne'
-            : 'topbar.alertLowStockTitleOther',
-          { count: lowStock.length }
-        ),
-        detail:
-          oos > 0
-            ? t('topbar.alertLowStockOos', { count: oos })
-            : t('topbar.alertLowStockIncludes', { name: tc(lowStock[0].name) }),
-        icon: AlertTriangle,
-        tone: 'text-amber-600 bg-amber-50',
-        onClick: () => navigateWithProductFilter('low_stock'),
-      });
-    }
-
-    const activePayout = state.payouts.find(
-      (p) => p.status === 'in_transit' || p.status === 'processing'
-    );
-    if (activePayout && state.settings.notifications.payoutConfirmations) {
-      items.push({
-        id: `alert-payout-${activePayout.id}`,
-        title: t(
-          activePayout.status === 'in_transit'
-            ? 'topbar.alertPayoutInTransit'
-            : 'topbar.alertPayoutProcessing',
-          { ref: activePayout.reference }
-        ),
-        detail: t('topbar.alertPayoutDetail', {
-          amount: formatCurrency(activePayout.netAmount, state.settings.currency),
-          date: activePayout.arrivalDate,
-        }),
-        icon: Wallet,
-        tone: 'text-emerald-600 bg-emerald-50',
-        onClick: () => setActiveSection('finance'),
-      });
-    }
-
-    return items;
-  }, [
-    state.orders,
-    state.products,
-    state.payouts,
-    state.settings.currency,
-    state.settings.notifications,
-    navigateWithOrderFilter,
-    navigateWithProductFilter,
-    setActiveSection,
-    t,
-    tc,
-  ]);
-
-  const unreadCount = alerts.filter((a) => !state.readAlertIds.includes(a.id)).length;
+  const unreadCount = alerts.filter((a) => a.unread).length;
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-xs sm:px-6 lg:px-8">
@@ -253,23 +164,29 @@ export function TopBar({ onOpenMobileMenu, onOpenSearch }: TopBarProps) {
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {alerts.map((alert) => {
-                    const Icon = alert.icon;
-                    const unread = !state.readAlertIds.includes(alert.id);
+                    const meta = ALERT_META[alert.kind];
+                    const Icon = meta.icon;
                     return (
                       <li key={alert.id}>
                         <button
                           type="button"
                           onClick={() => {
                             dispatch({ type: 'MARK_ALERTS_READ', payload: [alert.id] });
-                            alert.onClick();
+                            if (alert.action.type === 'order_filter') {
+                              navigateWithOrderFilter(alert.action.filter);
+                            } else if (alert.action.type === 'product_filter') {
+                              navigateWithProductFilter(alert.action.filter);
+                            } else {
+                              setActiveSection(alert.action.section);
+                            }
                             setAlertsOpen(false);
                           }}
                           className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 ${
-                            unread ? 'bg-teal-50/25' : ''
+                            alert.unread ? 'bg-teal-50/25' : ''
                           }`}
                         >
                           <span
-                            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${alert.tone}`}
+                            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${meta.tone}`}
                           >
                             <Icon className="h-3.5 w-3.5" />
                           </span>

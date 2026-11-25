@@ -8,6 +8,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true,
+    strictPort: true,
   },
   preview: {
     host: '0.0.0.0',
@@ -16,9 +17,13 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        main: 'index.html',
+        pet: 'pet.html',
+      },
       output: {
         manualChunks: {
-          react: ['react', 'react-dom'],
+          react: ['react', 'react-dom', 'react-dom/client'],
           icons: ['lucide-react'],
         },
       },
